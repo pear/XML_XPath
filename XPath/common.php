@@ -23,13 +23,11 @@
 // Core DOM and internal pointer methods for the Xpath/DOM XML manipulation and query interface.
 
 // }}}
-// {{{ hacks
+// {{{ functions
 
-# HACK ID:   Description:
-# 1          unlink() causes internal corruption and segfault.  If you just replace_node with
-#            empty text node you can emulate the functionality
-#
-# 2          function is_class_type() is only defined in php CVS, so I implemented it for the time being
+/**
+ * function is_a() is only defined in php CVS, so I implemented its functionality for the time being
+ */
 function is_class_type($class, $match) 
 {
     if (empty($class)) {
@@ -700,8 +698,7 @@ class XPath_common {
         // to save memory we only return the original node if requested
         $return = $in_returnOriginal ? $oldNode->clone_node(1) : null;
 
-        // HACK ID: 1 - get rid of the node (little hack to deal with faulty unlink())
-        $oldNode->replace_node($this->xml->create_text_node(''));
+        $oldNode->unlink();
 
         $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
 
@@ -803,13 +800,12 @@ class XPath_common {
         }
 
         // if we are returning the removedChild, clone it now
-        $return = $in_returnOriginal ? $this->pointer->clone_node(1) : true;
+        $return = $in_returnOriginal ? $this->pointer->clone_node(1) : null;
         // set the node to be removed
         $removeNode = $this->pointer;
         // set the pointer to the parent (since this node is gone)
         $this->pointer = $this->pointer->parent();
-        // HACK ID: 1 - get rid of the node (little hack to deal with faulty unlink())
-        $removeNode->replace_node($this->xml->create_text_node(''));
+        $removeNode->unlink();
 
         $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
        
@@ -817,7 +813,7 @@ class XPath_common {
     }
 
     // }}}
-    // {{{ object  replaceChildren()
+    // {{{ void    replaceChildren()
 
     /** 
      * Not in the DOM specification, but certainly a convenient function.  Allows you to pass
@@ -829,7 +825,7 @@ class XPath_common {
      * @param boolean $in_movePointer (optional) move internal pointer
      *
      * @access public
-     * @return {XPath_Error exception}
+     * @return void {or XPath_Error exception}
      */
     function replaceChildren($in_xmlData, $in_xpathQuery = null, $in_movePointer = false)
     {
@@ -855,8 +851,7 @@ class XPath_common {
         /** should just be able to replace_node here, but doesn't work like it should **/
         $this->pointer = $this->xml->insert_before($this->pointer, $oldPointer);
 
-        // HACK ID: 1 - unlink() just does crazy shit, and this is a nice replacement
-        $oldPointer->replace_node($this->xml->create_text_node(''));
+        $oldPointer->unlink();
 
         $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
     } 
