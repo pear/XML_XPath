@@ -1,4 +1,5 @@
 <?php
+// TODO: put evaluate in XPath_common...
 // {{{ license
 
 // +----------------------------------------------------------------------+
@@ -21,6 +22,16 @@
 // {{{ description
 
 // Result class for the Xpath/DOM XML manipulation and query interface.
+
+// }}}
+// {{{ constants
+
+define('XPATH_SORT_TEXT_ASCENDING',     1);
+define('XPATH_SORT_NUMBER_ASCENDING',   2);
+define('XPATH_SORT_NATURAL_ASCENDING',  3);
+define('XPATH_SORT_TEXT_DESCENDING',    4);
+define('XPATH_SORT_NUMBER_DESCENDING',  5);
+define('XPATH_SORT_NATURAL_DESCENDING', 6);
 
 // }}}
 
@@ -158,6 +169,21 @@ class XPath_result extends XPath_common {
     }
 
     // }}}
+    // {{{ int     getNodeIndex()
+
+    /**
+     * Return the index of the result nodeset.  This index is 1 based, and 0 means that the
+     * result nodeset is reset.
+     *
+     * @access public
+     * @return int current index of the result nodeset
+     */
+    function getNodeIndex()
+    {
+        return $this->index;
+    }
+
+    // }}}
     // {{{ void    setNodeIndex()
 
     /**
@@ -176,10 +202,10 @@ class XPath_result extends XPath_common {
             return PEAR::raiseError(null, XPATH_INVALID_NODESET, null, E_USER_NOTICE, "Cannot assign index $in_index to non-nodeset result in query {$this->query}", 'XPath_Error', true);
         }
         if ($in_index == 'last') {
-            $in_index = sizeOf($this->data);
+            $this->index = sizeOf($this->data);
         }
         elseif ($in_index == 'first') {
-            $in_index = 1;
+            $this->index = 1;
         }
         elseif (is_int($in_index)) {
             if ($in_index > sizeOf($this->data)) {
@@ -197,7 +223,93 @@ class XPath_result extends XPath_common {
     }
 
     // }}}
-    // {{{ void    resetResults()
+    // {{{ void    sort()
+
+    /**
+     * Sort the nodeset in this result.  The sort can be either ascending or descending, and
+     * the comparisons can be text, number or natural (see the constants above). The sort
+     * axis is provided as an xpath query and is the location path relative to the node given.
+     * For example, so sort on an attribute, you would provide '@foo' and it will look at the
+     * attribute for each node.  If the axis is not found, it comes first in the sort order for
+     * ascending order.
+     *
+     * @param  string $in_sortXpath relative xpath query location to each node in nodeset
+     * @param  int $in_order either XPATH_SORT_TEXT_[DE|A]SCENDING, 
+     *                              XPATH_SORT_NUMBER_[DE|A]SCENDING,
+     *                              XPATH_SORT_NATURAL_[DE|A]SCENDING
+     *
+     * @access public
+     * @return void {or XPath_Error exception}
+     */
+    function sort($in_sortXpath = '.', $in_order = XPATH_SORT_TEXT_ASCENDING) 
+    {
+        if ($this->resultType() != XPATH_NODESET) {
+            return PEAR::raiseError(null, XPATH_INVALID_NODESET, null, E_USER_NOTICE, $this->data, 'XPath_Error', true);
+        }
+        if ($in_sortXpath == '') {
+            $in_sortXpath = '.';
+        }
+        $xpathResult = @$this->ctx->xpath_eval($this->query . '/' . $in_sortXpath . '|' . $this->query);
+        if (!$xpathResult || !$xpathResult->nodeset) {
+            return PEAR::raiseError(null, XPATH_INVALID_QUERY, null, E_USER_NOTICE, "Query {$this->query}/$in_sortXPath", 'XPath_Error', true);
+        }
+        $data = array();
+        $this->index = 0;
+        if (sizeof($xpathResult->nodeset) == sizeof($this->data)) {
+            foreach ($xpathResult->nodeset as $index => $node) {
+                array_push($data, $xpathResult->nodeset[$index]->get_content());
+            }
+        }
+        else {
+            foreach ($xpathResult->nodeset as $index => $node) {
+                if ($node != $this->data[$this->index]) {
+                    continue;
+                }
+                if ($xpathResult->nodeset[$index + 1] == $this->data[$this->index]) {
+                    array_push($data, '');
+                }
+                elseif(isset($xpathResult->nodeset[$index + 1])) {
+                    array_push($data, $xpathResult->nodeset[$index + 1]->get_content());
+                }
+                $this->index++;
+            }
+        }
+        switch ($in_order) {
+            case XPATH_SORT_TEXT_ASCENDING:
+                asort($data, SORT_STRING);
+                break;
+            case XPATH_SORT_NUMBER_ASCENDING:
+                asort($data, SORT_NUMERIC);
+                break;
+            case XPATH_SORT_NATURAL_ASCENDING:
+                natsort($data);
+                break;
+            case XPATH_SORT_TEXT_DESCENDING:
+                arsort($data, SORT_STRING);
+                break;
+            case XPATH_SORT_NUMBER_DESCENDING:
+                arsort($data, SORT_NUMERIC);
+                break;
+            case XPATH_SORT_NATURAL_DESCENDING:
+                natsort($data);
+                $data = array_reverse($data, TRUE);
+                break;
+            default:
+                asort($data);
+                break;
+        }
+        $dataReordered = array();
+        $this->index = 0;
+        foreach ($data as $reindex => $value) {
+            $dataReordered[$this->index++] = $this->data[$reindex];
+        }
+        $this->data = $dataReordered;
+        $this->index = 0;
+        $this->pointer = $this->data[$this->index];
+    }
+     
+    // }}}
+    // {{{ void    reset()
 
     /**
      * Reset the result index back to the beginning.
@@ -205,7 +317,7 @@ class XPath_result extends XPath_common {
      * @access public
      * @return void
      */
-    function resetResults()
+    function reset()
     {
         $this->index = 0;
     }
@@ -221,8 +333,7 @@ class XPath_result extends XPath_common {
      */
     function free()
     {
-        $this->result = null; 
-        $this->data = null;
+        $this = null; 
     }
 
     // }}}
