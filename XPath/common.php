@@ -240,6 +240,33 @@ class XML_XPath_common {
     }
 
     // }}}
+    // {{{ boolean documentElement()
+
+    /**
+     * Move to the document element
+     *
+     * @param  boolean  $in_movePointer (optional) move the internal pointer or return reference 
+     *
+     * @access public
+     * @return boolean whether pointer was moved or object pointer to document element
+     */
+    function documentElement($in_movePointer = true)
+    {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+        
+        $documentElement = $this->xml->document_element();
+        if ($in_movePointer) {
+            $this->pointer = $documentElement;
+            return true;
+        }
+        else {
+            return $documentElement;
+        }
+    }
+
+    // }}}
     // {{{ boolean parentNode()
 
     /**
@@ -1385,7 +1412,7 @@ class XML_XPath_common {
             if ($in_xpathQuery[0] == 'current()' || $in_xpathQuery[0] == '.') {
                 $in_xpathQuery[0] = $this->getNodePath($this->pointer);
             }
-            elseif ($in_xpathQuery[0] == 'parent()' || $in_xpathQuery[0] == '..') {
+            elseif ($in_xpathQuery[0] == 'parent::node()' || $in_xpathQuery[0] == '..') {
                 if ($this->pointer->node_type() != XML_DOCUMENT_NODE) {
                     $in_xpathQuery[0] = $this->getNodePath($this->pointer->parent_node());
                 }
@@ -1471,7 +1498,7 @@ class XML_XPath_common {
             return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
         }
 
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_TEXT_NODE, XML_CDATA_SECTION_NODE, XML_COMMENT_NODE, XML_PI_NODE)))) {
+        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE, XML_TEXT_NODE, XML_CDATA_SECTION_NODE, XML_COMMENT_NODE, XML_PI_NODE)))) {
             return $result;
         }
 
@@ -1491,7 +1518,15 @@ class XML_XPath_common {
             else {
                 $data = substr($data, 0, $in_offset) . $in_content . substr($data, $in_offset);
             }
-            $this->pointer->set_content($data);
+
+            if ($this->pointer->node_type() == XML_ELEMENT_NODE) {
+                $this->replaceChildren($data);
+            }
+            else {
+                $this->pointer->replace_node($this->xml->create_text_node($data));
+            }
+
+            $return = null;
         }
 
         if (!is_null($in_xpathQuery) && !$in_movePointer) {
@@ -1571,7 +1606,7 @@ class XML_XPath_common {
                     if ($in_xpathQuery[0] == 'current()' || $in_xpathQuery[0] == '.') {
                         $in_xpathQuery[0] = $this->getNodePath($this->pointer);
                     }
-                    elseif ($in_xpathQuery[0] == 'parent()' || $in_xpathQuery[0] == '..') {
+                    elseif ($in_xpathQuery[0] == 'parent::node()' || $in_xpathQuery[0] == '..') {
                         if ($this->pointer->node_type() != XML_DOCUMENT_NODE) {
                             $in_xpathQuery[0] = $this->getNodePath($this->pointer->parent_node());
                         }

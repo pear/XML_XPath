@@ -199,7 +199,7 @@ class XML_XPath_result extends XML_XPath_common {
      * @access public
      * @return boolean success {or XML_XPath_Error exception}
      */
-    function sort($in_sortXpath = '.', $in_order = XML_XPATH_SORT_TEXT_ASCENDING) 
+    function sort($in_sortXpath = '.', $in_order = XML_XPATH_SORT_TEXT_ASCENDING, $in_permanent = false) 
     {
         // make sure we are dealing with a result that is a nodeset
         if ($this->type != XPATH_NODESET) {
@@ -227,7 +227,7 @@ class XML_XPath_result extends XML_XPath_common {
             // in sorted order and then just weed out the nodes I used to sort.
             $xpathResult = @$this->ctx->xpath_eval($this->query . '/' . $in_sortXpath . '|' . $this->query);
             if (!$xpathResult || empty($xpathResult->nodeset)) {
-                return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_NOTICE, "Query {$this->query}/$in_sortXPath", 'XML_XPath_Error', true);
+                return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_NOTICE, "Query {$this->query}/$in_sortXpath", 'XML_XPath_Error', true);
             }
 
             // Sorting Process: 
@@ -306,6 +306,24 @@ class XML_XPath_result extends XML_XPath_common {
         }
 
         $this->data = $dataReordered;
+
+        // if this is a permanent sort, make the change to the main tree
+        if ($in_permanent && $parent = $this->data[0]->parent_node()) {
+            // nix all the children by overwriting node and fixing attributes
+            $attributes = $parent->has_attributes() ? $parent->attributes() : array();
+            $parent->replace_node($clone = $parent->clone_node());
+            $parent = $clone;
+
+            foreach($attributes as $attributeNode) {
+               // waiting on set_attribute_node() to work here
+               $parent->set_attribute($attributeNode->node_name(), $attributeNode->value());
+            }
+            
+            foreach ($this->data as $sortedNode) {
+                $parent->append_child($sortedNode);
+            }
+        }
+
         // rewind to the beginning of the data set
         $this->rewind();
 
