@@ -130,7 +130,7 @@ class XML_XPath extends XML_XPath_common {
             $this->xml = $in_xml;
         }
         // we can read the file, so use xmldocfile to make a xmldom object
-        elseif ($in_type == 'file' && @file_exists($in_xml)) {
+        elseif ($in_type == 'file' && (preg_match(';(https?|ftp)://;', $in_xml) || @file_exists($in_xml))) {
             $this->xml = domxml_open_file($in_xml);
         }
         // this is a string, so attempt to make an xmldom object from string

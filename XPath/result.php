@@ -197,13 +197,13 @@ class XML_XPath_result extends XML_XPath_common {
      *                              XML_XPATH_SORT_NATURAL_[DE|A]SCENDING
      *
      * @access public
-     * @return boolean success {or XML_XPath_Error exception}
+     * @return boolean success (return false if nothing to sort)
      */
     function sort($in_sortXpath = '.', $in_order = XML_XPATH_SORT_TEXT_ASCENDING, $in_permanent = false) 
     {
         // make sure we are dealing with a result that is a nodeset
-        if ($this->type != XPATH_NODESET) {
-            return PEAR::raiseError(null, XML_XPATH_INVALID_NODESET, null, E_USER_NOTICE, $this->data, 'XPath_Error', true);
+        if ($this->type != XPATH_NODESET || !$this->numResults()) {
+            return false;
         }
 
         $data = array();
