@@ -152,11 +152,11 @@ class XPath extends XPath_common {
     // {{{ mixed   getOne()
 
     /**
-     * A quick version of the evaluate, where the results are returned immediately.  If the result
-     * of the xpath expression is a node-set, it just returns the size of the nodeset array.
-     * Otherwise, it returns the scalar value.
+     * A quick version of the evaluate, where the results are returned immediately. This
+     * function is equivalent to xsl:value-of select in every way.
      *
-     * @param  string  $in_xpathQuery xpath query
+     * @param  string  $in_xpathQuery (optional) quick xpath query
+     * @param  boolean $in_movePointer (optional) move internal pointer
      *
      * @access public
      * @return mixed number of nodes or value of scalar result {or XPath_Error exception}

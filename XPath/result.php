@@ -98,7 +98,7 @@ class XPath_result extends XPath_common {
                 return $this->data ? true : false;
                 break;
             case XPATH_NODESET:
-                return $this->numResults();
+                return $this->isNodeType(XML_ATTRIBUTE_NODE) ? $this->pointer->value() : $this->substringData();
                 break;
             case XPATH_STRING:
             case XPATH_NUMBER:

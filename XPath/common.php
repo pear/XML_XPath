@@ -120,7 +120,7 @@ class XPath_common {
         if (XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
-        $nodeName = $this->pointer->node_name();
+        $nodeName = $this->isNodeType(XML_ATTRIBUTE_NODE) ? $this->pointer->name() : $this->pointer->node_name();
         $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
         return $nodeName;
     }
