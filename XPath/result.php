@@ -319,8 +319,8 @@ class XML_XPath_result extends XML_XPath_common {
                $parent->set_attribute($attributeNode->node_name(), $attributeNode->value());
             }
             
-            foreach ($this->data as $sortedNode) {
-                $parent->append_child($sortedNode);
+            foreach ($this->data as $key => $sortedNode) {
+                $this->data[$key] = $parent->append_child($sortedNode);
             }
         }
 
