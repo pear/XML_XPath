@@ -53,16 +53,7 @@ function is_a_php_class($class, $match)
 }
 
 // }}}
-/**
- * changes to domxml that I have to look at
- *
- * implement the striping of formating on the way in possibly
- * append_sibling() added
- * insert_before() now copies node before inserting
- * domxml_parser() might be good for bringing in stuff
- * when using getAttribute with the move = true, we should sit on the attribute node, not the parent element
- * let's eliminate _quick_evaluate_shutdown since calling a function is slow and it just does a check and calls another function
- */
+
 // {{{ class XML_XPath_common
 
 /**
@@ -108,17 +99,30 @@ function is_a_php_class($class, $match)
 class XML_XPath_common {
     // {{{ properties
 
-    /** @var object  current location in xml document */
+    /**
+     * domxml node of the current location in the xml document
+     * @var object $pointer
+     */
     var $pointer;
 
-    /** @var object  bookmark used for holding a place in the document */
+    /**
+     * domxml node bookmark used for holding a place in the xml document
+     * @var object $bookmark 
+     */
     var $bookmark;
 
-    /** @var boolean when stepping through nodes, should we skip empty text nodes */
+    /**
+     * when working with the xml document, ignore the presence of blank nodes (white space)
+     * @var boolean $skipBlanks
+     */
     var $skipBlanks = true;
 
-    /** @var file path to xmllint for reformating **/
-    var $xmllint = "xmllint";
+    /**
+     * path to xmllint used for reformating the xml output
+     * [!] should be using System_Command for this [!]
+     * @var string $xmllint
+     */
+    var $xmllint = 'xmllint';
 
     // }}}
     // {{{ string  nodeName()
@@ -134,13 +138,19 @@ class XML_XPath_common {
      */
     function nodeName($in_xpathQuery = null, $in_movePointer = false) 
     {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if ($hasQuery = !is_null($in_xpathQuery) && XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
 
         $nodeName = $this->pointer->node_name();
 
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if ($hasQuery && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
 
         return $nodeName;
     }
@@ -159,12 +169,74 @@ class XML_XPath_common {
      */
     function nodeType($in_xpathQuery = null, $in_movePointer = false)
     {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if ($hasQuery = !is_null($in_xpathQuery) && XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
+
         $nodeType = $this->pointer->node_type();
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        if ($hasQuery && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+
         return $nodeType;
+    }
+
+    // }}}
+    // {{{ object  childNodes()
+
+    /**
+     * Retrieves the child nodes from the element node as an XML_XPath_result object
+     *
+     * Similar to an xpath query, this function will grab all the first descendant child
+     * nodes of the element node at the current position and will create an XML_XPath_result
+     * object of type nodeset with each of the child nodes as the nodes.
+     * DOM query functions do not take an xpathQuery argument
+     *
+     * @access public
+     * @return object XML_XPath_result object of type nodeset
+     * [!] important note: since we had to hack the result object a bit, you cannot sort the
+     * result object when generated in this manner right now [!]
+     */
+    function &childNodes()
+    {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        $nodeset = array();
+        foreach($this->pointer->child_nodes() as $childNode) {
+            // if this is a blank node and we are skipping blank nodes...skip to next child
+            if ($childNode->is_blank_node() && $this->skipBlanks) {
+                continue;
+            }
+            $nodeset[] = $childNode;
+        }
+        return new XML_XPath_result($nodeset, XPATH_NODESET, array($this->pointer, '/*'), $this->ctx);
+    }
+
+    // }}}
+    // {{{ object  getElementsByTagName()
+
+    /**
+     * Create an XML_XPath_result object with the elements with the specified tagname
+     *
+     * DOM query functions do not take an xpathQuery argument
+     *
+     * @param  string $in_tagName
+     *
+     * @return object XML_XPath_result object of matching nodes
+     * @access public
+     */
+    function getElementsByTagName($in_tagName)
+    {
+        // since we can't do an actual xpath query, we need to create a pseudo xpath result
+        $nodeset = $this->xml->get_elements_by_tagname($in_tagName);
+        return new XML_XPath_result($nodeset, XPATH_NODESET, array(null, '//' . $in_tagName), $this->ctx);
     }
 
     // }}}
@@ -172,6 +244,7 @@ class XML_XPath_common {
 
     /**
      * Moves the internal pointer to the parent of the current node or returns the pointer.
+     * Step functions do not take an xpathQuery argument
      *
      * @param  boolean  $in_movePointer (optional) move the internal pointer or return reference 
      *
@@ -180,6 +253,10 @@ class XML_XPath_common {
      */
     function parentNode($in_movePointer = true)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         $parent = $this->pointer->parent_node(); 
         if ($parent) {
             if ($in_movePointer) {
@@ -196,63 +273,12 @@ class XML_XPath_common {
     }
 
     // }}}
-    // {{{ object  childNodes()
-
-    /**
-     * Retrieves the child nodes from the element node as an XML_XPath_result object
-     *
-     * Similar to an xpath query, this function will grab all the first descendant child
-     * nodes of the element node at the current position and will create an XML_XPath_result
-     * object of type nodeset with each of the child nodes as the nodes.
-     *
-     * @param string  $in_xpathQuery (optional) quick xpath query
-     * @param boolean $in_movePointer (optional) move the internal pointer with quick xpath query
-     *
-     * @access public
-     * @return object XML_XPath_result object of type nodeset
-     * [!] important note: since we had to hack the result object a bit, you cannot sort the
-     * result object when generated in this manner right now [!]
-     */
-    function &childNodes($in_xpathQuery = null, $in_movePointer = false)
-    {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
-            return $result;
-        }
-
-        // since we can't do an actual xpath query, we need to create a pseudo xpath result
-        $xpathObj = new StdClass();
-        $xpathObj->type = XPATH_NODESET;
-        foreach($this->pointer->child_nodes() as $childNode) {
-            // if this is a blank node and we are skipping blank nodes...skip to next child
-            if ($childNode->is_blank_node() && $this->skipBlanks) {
-                continue;
-            }
-            $xpathObj->nodeset[] = $childNode;
-        }
-        $resultObj =& new XML_XPath_result($xpathObj, null, $this->xml, $this->ctx);
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
-        return $resultObj;
-    }
-
-    // }}}
-    // {{{ object  getElementsByTagName()
-
-    function getElementsByTagName($in_tagName)
-    {
-        // since we can't do an actual xpath query, we need to create a pseudo xpath result
-        $xpathObj = new StdClass();
-        $xpathObj->type = XPATH_NODESET;
-        $xpathObj->nodeset = $this->xml->get_elements_by_tagname($in_tagName);
-        $resultObj =& new XML_XPath_result($xpathObj, null, $this->xml, $this->ctx);
-        return $resultObj;
-    }
-
-    // }}}
     // {{{ boolean nextSibling()
 
     /**
      * Moves the internal pointer to the next sibling of the current node, or returns the pointer.
      * If the flag is on to skip blank nodes then the first non-blank node is used.
+     * Step functions do not take an xpathQuery argument
      *
      * @param  boolean  $in_movePointer (optional) move the internal pointer or return reference 
      *
@@ -261,9 +287,14 @@ class XML_XPath_common {
      */
     function nextSibling($in_movePointer = true)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (!$this->pointer->next_sibling()) {
             return false;
         }
+
         $next = $this->pointer->next_sibling();
         if ($this->skipBlanks) {
             while (true) {
@@ -304,6 +335,7 @@ class XML_XPath_common {
      * Moves the internal pointer to the previous sibling 
      * of the current node or returns the pointer.
      * If the flag is on to skip blank nodes then the first non-blank node is used.
+     * Step functions do not take an xpathQuery argument
      *
      * @param  boolean  $in_movePointer (optional) move the internal pointer or return reference 
      *
@@ -312,9 +344,14 @@ class XML_XPath_common {
      */
     function previousSibling($in_movePointer = true)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (!$this->pointer->previous_sibling()) {
             return false;
         }
+
         $previous = $this->pointer->previous_sibling();
         if ($this->skipBlanks) {
             while (true) {
@@ -349,6 +386,7 @@ class XML_XPath_common {
     /**
      * Moves the pointer to the first child of this node or returns the first node.  
      * If the flag is on to skip blank nodes then the first non-blank node is used.
+     * Step functions do not take an xpathQuery argument
      *
      * @param  boolean  $in_movePointer (optional) move the internal pointer or return reference 
      *
@@ -357,9 +395,14 @@ class XML_XPath_common {
      */
     function firstChild($in_movePointer = true)
     {
-        if (!$this->hasChildNodes()) {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if (!$this->pointer->has_child_nodes()) {
             return false;
         }
+
         $first = $this->pointer->first_child();
         if ($this->skipBlanks) {
             while (true) {
@@ -394,6 +437,7 @@ class XML_XPath_common {
     /**
      * Moves the pointer to the last child of this node or returns the last child.
      * If the flag is on to skip blank nodes then the first non-blank node is used.
+     * Step functions do not take an xpathQuery argument
      *
      * @param  boolean  $in_movePointer (optional) move the internal pointer or return reference 
      *
@@ -402,9 +446,14 @@ class XML_XPath_common {
      */
     function lastChild($in_movePointer = true)
     {
-        if (!$this->hasChildNodes()) {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if (!$this->pointer->has_child_nodes()) {
             return false;
         }
+
         $last = $this->pointer->last_child();
         if ($this->skipBlanks) {
             while (true) {
@@ -434,29 +483,6 @@ class XML_XPath_common {
     }
 
     // }}}
-    // {{{ boolean isNodeType()
-
-    /**
-     * Determines if the node type is equivalent to the node type requested.
-     *
-     * @param  int     $in_type DOM node type defined by the xml node type constants 
-     * @param  string  $in_xpathQuery (optional) quick xpath query
-     * @param  boolean $in_movePointer (optional) move internal pointer with quick xpath query
-     *
-     * @access public
-     * @return boolean same type of node {or XML_XPath_Error exception}
-     */
-    function isNodeType($in_type, $in_xpathQuery = null, $in_movePointer = false)
-    {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
-            return $result;
-        }
-        $isNodeType = $this->pointer->node_type() == $in_type ? true : false;
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
-        return $isNodeType;
-    }
-
-    // }}}
     // {{{ boolean hasChildNodes()
 
     /**
@@ -470,11 +496,20 @@ class XML_XPath_common {
      */
     function hasChildNodes($in_xpathQuery = null, $in_movePointer = false)
     {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if ($hasQuery = !is_null($in_xpathQuery) && XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
-        $hasChildNodes = $this->pointer->has_child_nodes() ? true : false;
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        $hasChildNodes = $this->pointer->has_child_nodes();
+
+        if ($hasQuery && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+
         return $hasChildNodes;
     }
 
@@ -492,11 +527,20 @@ class XML_XPath_common {
      */
     function hasAttributes($in_xpathQuery = null, $in_movePointer = false)
     {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if ($hasQuery = !is_null($in_xpathQuery) && XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
-        $hasAttributes = $this->pointer->has_attributes() ? true : false;
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        $hasAttributes = $this->pointer->has_attributes();
+
+        if ($hasQuery && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+
         return $hasAttributes;
     }
 
@@ -516,20 +560,20 @@ class XML_XPath_common {
      */
     function hasAttribute($in_name, $in_xpathQuery = null, $in_movePointer = false)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
             return $result;
         }
-        $hasAttribute = false;
-        if (!is_array($attributeNodes = $this->pointer->attributes())) {
-            $attributeNodes = array();
+
+        $hasAttribute = $this->pointer->has_attribute($in_name) ? true : false;
+
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
         }
-        foreach($attributeNodes as $attributeNode) {
-            if ($attributeNode->name == $in_name) {
-                $hasAttribute = true;
-                break;
-            }
-        }
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
         return $hasAttribute;
     }
 
@@ -548,16 +592,25 @@ class XML_XPath_common {
      */
     function getAttributes($in_xpathQuery = null, $in_movePointer = false) 
     {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if ($hasQuery = !is_null($in_xpathQuery) && XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
+
         $return = array();
         if (is_array($attributeNodes = $this->pointer->attributes())) {
             foreach($attributeNodes as $attributeNode) {
                 $return[$attributeNode->name] = $attributeNode->value;
             }
         }
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        if ($hasQuery && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+
         return $return;
     }
  
@@ -569,7 +622,8 @@ class XML_XPath_common {
      *
      * Grab the attribute value if it exists and return it.  If the attribute does not
      * exist, this function will return the boolean 'false', so be sure to check properly
-     * if the value is "" or if the attribute doesn't exist at all.
+     * if the value is "" or if the attribute doesn't exist at all.  This function is the
+     * only attribute function which allows you to step onto the attribute node.
      *
      * @param string  $in_name Name of the attribute
      * @param string  $in_xpathQuery (optional) quick xpath query
@@ -580,13 +634,23 @@ class XML_XPath_common {
      */
     function getAttribute($in_name, $in_xpathQuery = null, $in_movePointer = false) 
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
             return $result;
         }
 
         $result = $this->pointer->get_attribute($in_name);
+        // if we found the attribute, move to it if we are moving the pointer
+        if ($result && $in_movePointer) {
+            $this->pointer = $this->pointer->get_attribute_node($in_name);
+        }
 
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
 
         return $result;
     }
@@ -605,15 +669,25 @@ class XML_XPath_common {
      * @param boolean $in_movePointer (optional) move internal pointer
      *
      * @access public
-     * @return void {or XML_XPath_Error exception}
+     * @return boolean success {or XML_XPath_Error exception}
      */
     function setAttribute($in_name, $in_value, $in_xpathQuery = null, $in_movePointer = false)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
             return $result;
         }
-        $this->pointer->set_attribute($in_name, $in_value);
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        $result = $this->pointer->set_attribute($in_name, $in_value);
+
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+
+        return $result;
     }
 
     // }}}
@@ -627,15 +701,25 @@ class XML_XPath_common {
      * @param  boolean $in_movePointer (optional) move internal pointer
      *
      * @access public
-     * @return void {or XML_XPath_Error exception}
+     * @return boolean success {or XML_XPath_Error exception}
      */
     function removeAttribute($in_name, $in_xpathQuery = null, $in_movePointer = false)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
             return $result;
         }
-        $this->pointer->remove_attribute($in_name);
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        $result = $this->pointer->remove_attribute($in_name);
+
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+        
+        return $result;
     }
 
     // }}}
@@ -657,6 +741,10 @@ class XML_XPath_common {
      */
     function substringData($in_offset = 0, $in_count = 0, $in_xpathQuery = null, $in_movePointer = false) 
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_TEXT_NODE, XML_ELEMENT_NODE, XML_CDATA_SECTION_NODE, XML_COMMENT_NODE)))) {
             return $result;
         }
@@ -667,12 +755,15 @@ class XML_XPath_common {
         elseif (!is_int($in_offset) || $in_offset < 0 || $in_offset > strlen($content = $this->pointer->get_content())) {
             $return = PEAR::raiseError(null, XML_XPATH_INDEX_SIZE, null, E_USER_WARNING, "Offset: $in_offset", 'XML_XPath_Error', true);
         }
-        // if this is an element node, concat all the text children recursively
         else {
             $return = $in_count ? substr($content, $in_offset, $in_count) : 
                                   substr($content, $in_offset);
         }
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+
         return $return;
     }
 
@@ -766,16 +857,23 @@ class XML_XPath_common {
      *
      * @access public
      * @return object pointer to old node {or XML_XPath_Error exception} 
-     * @todo I should make it so an xml_xpath_result is returned or something
+     * [!] I should make it so an xml_xpath_result is returned or something [!]
      */
     function replaceChild($in_xmlData, $in_xpathQuery = null, $in_movePointer = false)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE, XML_TEXT_NODE, XML_COMMENT_NODE, XML_CDATA_SECTION_NODE, XML_PI_NODE)))) {
             return $result;
         }
 
         if (XML_XPath::isError($importedNodes = $this->_build_fragment($in_xmlData))) {
-            $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+            if (!is_null($in_xpathQuery) && !$in_movePointer) {
+                $this->_restore_bookmark();
+            }
+
             return $importedNodes;
         }
 
@@ -791,7 +889,9 @@ class XML_XPath_common {
             }
         }
 
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
 
         return $oldNode; 
     }
@@ -812,12 +912,20 @@ class XML_XPath_common {
      */
     function appendChild($in_xmlData, $in_xpathQuery = null, $in_movePointer = false) 
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE, XML_DOCUMENT_NODE)))) {
             return $result;
         }
+
         // if this is a document node, make sure no root exists
-        if ($this->isNodeType(XML_DOCUMENT_NODE) && $this->xml->document_element()) {
-            $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if ($this->pointer->node_type() == XML_DOCUMENT_NODE && $this->xml->document_element()) {
+            if (!is_null($in_xpathQuery) && !$in_movePointer) {
+                $this->_restore_bookmark();
+            }
+
             return PEAR::raiseError(null, XML_DUPLICATE_ROOT, null, E_USER_WARNING, null, 'XML_XPath_Error', true);
         }
 
@@ -830,7 +938,11 @@ class XML_XPath_common {
                 $newNode = $node;
             }
         }
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+
         return $newNode;
     }
 
@@ -849,6 +961,10 @@ class XML_XPath_common {
      */
     function insertBefore($in_xmlData, $in_xpathQuery = null, $in_movePointer = false)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
             return $result;
         }
@@ -867,7 +983,9 @@ class XML_XPath_common {
             }
         }
 
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
 
         return $newNode;
     }
@@ -889,6 +1007,10 @@ class XML_XPath_common {
      */
     function removeChild($in_xpathQuery = null, $in_movePointer = false)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE, XML_TEXT_NODE, XML_COMMENT_NODE, XML_PI_NODE, XML_CDATA_SECTION_NODE)))) {
             return $result;
         }
@@ -900,7 +1022,9 @@ class XML_XPath_common {
         // set pointer to the parent
         $this->pointer = $parent;
 
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
        
         return $removedNode;
     }
@@ -923,12 +1047,19 @@ class XML_XPath_common {
      */
     function replaceChildren($in_xmlData, $in_xpathQuery = null, $in_movePointer = false)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
             return $result;
         }
 
         if (XML_XPath::isError($importedNodes = $this->_build_fragment($in_xmlData))) {
-            $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+            if (!is_null($in_xpathQuery) && !$in_movePointer) {
+                $this->_restore_bookmark();
+            }
+
             return $importedNodes;
         }
 
@@ -946,7 +1077,9 @@ class XML_XPath_common {
             $this->pointer->append_child($importedNode);
         }
 
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
     } 
 
     // }}}
@@ -963,6 +1096,10 @@ class XML_XPath_common {
      */
     function dumpChildren($in_xpathQuery = null, $in_movePointer = false, $in_format = true) 
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
             return $result;
         }
@@ -970,7 +1107,9 @@ class XML_XPath_common {
         $xmlString = trim($this->xml->dump_node($this->pointer, $in_format));
         $xmlString = substr($xmlString,strpos($xmlString,'>')+1,-(strlen($this->nodeName())+3));
         
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
 
         return $xmlString;
     }
@@ -1024,7 +1163,11 @@ class XML_XPath_common {
      */
     function toString($in_xpathQuery = null, $in_movePointer = false, $in_format = true) 
     {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if ($hasQuery = !is_null($in_xpathQuery) && XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
          
@@ -1040,7 +1183,9 @@ class XML_XPath_common {
             $xmlString = `echo $xmlString | {$this->xmllint} --format - 2>&1`;
         }*/
 
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if ($hasQuery && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
      
         return $xmlString;
     }
@@ -1097,16 +1242,18 @@ class XML_XPath_common {
      *
      * @return string xpath location query
      * @access public
-     * [?] maybe add caching [?]
      */
-    function getNodePath($in_xpathQuery = null, $in_movePointer = false)
+    function getNodePath($in_node)
     {
-        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
-            return $result;
+        if (!$in_node) {
+            return null;
+        }
+        elseif (!$this->_is_dom_node($in_node)) {
+            return PEAR::raiseError(null, XML_XPATH_NODE_REQUIRED, null, E_USER_WARNING, $in_node, 'XML_XPath_Error', true);
         }
 
         $buffer = '';
-        $cur = $this->pointer;
+        $cur = $in_node;
         do {
             $name = '';
             $sep = '/';
@@ -1116,7 +1263,7 @@ class XML_XPath_common {
                     break;
                 }
     
-                $next = NULL;
+                $next = false;
             }
             else if ($type == XML_ATTRIBUTE_NODE) {
                 $sep .= '@';
@@ -1129,7 +1276,7 @@ class XML_XPath_common {
     
                 // now figure out the index
                 $tmp = $cur->previous_sibling();
-                while ($tmp != NULL) {
+                while ($tmp != false) {
                     if ($name == $tmp->node_name()) {
                         $occur++; 
                     }
@@ -1167,10 +1314,8 @@ class XML_XPath_common {
     
             $cur = $next;
     
-        } while ($cur != NULL);
+        } while ($cur != false);
     
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
-
         return $buffer;
     }
 
@@ -1219,6 +1364,10 @@ class XML_XPath_common {
      */
     function _set_content($in_content, $in_xpathQuery, $in_movePointer, $in_replace, $in_offset = 0, $in_count = 0)
     {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
         if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_TEXT_NODE, XML_CDATA_SECTION_NODE, XML_COMMENT_NODE, XML_PI_NODE)))) {
             return $result;
         }
@@ -1242,7 +1391,9 @@ class XML_XPath_common {
             $this->pointer->set_content($data);
         }
 
-        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
 
         return $return;
     }
@@ -1278,21 +1429,6 @@ class XML_XPath_common {
     }
 
     // }}}
-    // {{{ _set_bookmark()
-
-    /**
-     * Set a temporary bookmark of the internal pointer while doing a quick xpath query
-     *
-     * @access private
-     * @return void
-     */
-    function _set_bookmark($in_location)
-    {
-        $this->bookmark = $this->pointer;
-        $this->pointer = $in_location;
-    }
-
-    // }}}
     // {{{ _quick_evaluate_init()
 
     /**
@@ -1310,62 +1446,80 @@ class XML_XPath_common {
      */
     function _quick_evaluate_init($in_xpathQuery = null, $in_movePointer = false, $in_nodeTypes = null) 
     {
-        if (!is_null($in_xpathQuery)) {
-            if ($this->_is_dom_node($in_xpathQuery)) {
+        // we don't need to check for null, since false or 0 is not a valid query anyway
+        if ($in_xpathQuery) {
+            if (!is_object($in_xpathQuery)) {
+                // doing the following manually (without evaluate()) is critical for speed
+                
+                // Make sure we have an xpath context (mildly costly)
+                if (get_class($this->ctx) != 'XPathContext') {
+                    return PEAR::raiseError(null, XML_XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XML_XPath_Error', true);
+                }
+
+                // enable relative xpath queries (I don't check a valid dom object yet)
+                settype($in_xpathQuery, 'array');
+                if (isset($in_xpathQuery[1])) {
+                    $sep = '/';
+                    // those double slashes cause an anomally
+                    if (substr($in_xpathQuery[0], 0, 2) == '//') {
+                        $sep = '';
+                    }
+                    
+                    if ($in_xpathQuery[1] == 'current()') {
+                        $in_xpathQuery[1] = $this->getNodePath($this->pointer);
+                    }
+                    else {
+                        $in_xpathQuery[1] = $this->getNodePath($in_xpathQuery[1]);
+                    }
+
+                    $xpathQuery = $in_xpathQuery[1] . $sep . $in_xpathQuery[0];
+                }
+                else {
+                    $xpathQuery = reset($in_xpathQuery);
+                }
+
+                if (!$result = @xpath_eval($this->ctx, $xpathQuery)) {
+                    return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_WARNING, "XML_XPath query: $xpathQuery", 'XML_XPath_Error', true);
+                }
+                
+                if (empty($result->nodeset) || $result->type != XPATH_NODESET) {
+                    return PEAR::raiseError(null, XML_XPATH_INVALID_NODESET, null, E_USER_WARNING, "XML_XPath query: $xpathQuery", 'XML_XPath_Error', true);
+                }
+
+                // this takes the first result (too bad if you had more)
+                $tmpPointer = reset($result->nodeset);
+            }
+            // a bit costly, so we put it second
+            elseif ($this->_is_dom_node($in_xpathQuery)) {
                 $tmpPointer = $in_xpathQuery;
             } 
             else {
-                if (XML_XPath::isError($resultObj = $this->evaluate($in_xpathQuery))) {
-                    return $resultObj;
-                }
-                // make sure we have at least one node
-                if (!($resultObj->numResults() && $resultObj->resultType() == XPATH_NODESET)) {
-                    return PEAR::raiseError(null, XML_XPATH_INVALID_NODESET, null, E_USER_WARNING, "XML_XPath query: $in_xpathQuery", 'XML_XPath_Error', true);
-                }
-                $resultObj->nextNode();
-                $tmpPointer = $resultObj->getPointer();
+                return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_WARNING, "XML_XPath query: $in_xpathQuery", 'XML_XPath_Error', true);
             }
+
             // if we are moving the internal pointer, then do it now
             if ($in_movePointer) {
                 $this->pointer = $tmpPointer;
             }
             // set the bookmark if we only want to temporarily move the pointer
+            // this area is too critical to call class methods...we have to be nasty
             else {
-                $this->_set_bookmark($tmpPointer);
+                $this->bookmark = $this->pointer;
+                $this->pointer = $tmpPointer;
             }
         }
-        // see if we have a restricted nodeType requirement
+
+        // see if we have a restricted nodeType requirement (negligible time)
         if (is_array($in_nodeTypes) && !in_array($nodeType = $this->pointer->node_type(), $in_nodeTypes)) {
-            $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+            if (!is_null($in_xpathQuery) && !$in_movePointer) {
+                $this->_restore_bookmark();
+            }
+
             return PEAR::raiseError(null, XML_XPATH_INVALID_NODETYPE, null, E_USER_WARNING, "Required type: ".implode(" or ", $in_nodeTypes).", Provided type: ".$nodeType, 'XML_XPath_Error', true);
         }
         else {
             return true;
         }
-    }
-
-    // }}}
-    // {{{ _quick_evaluate_shutdown()
-
-    /**
-     * Restore the internal pointer if there was no request to permanently move it with the
-     * quick query.  This should never return error because it is only called if the init was
-     * successful.
-     *
-     * @param string  $in_xpathQuery options quick xpath query to execute
-     * @param boolean $in_movePointer allow quick query to move the internal pointer
-     *
-     * @access private
-     * @return boolean always true
-     */
-    function _quick_evaluate_shutdown($in_xpathQuery = null, $in_movePointer = false)
-    {
-        // if we did quick xpath query and didn't want to move 
-        // our internal pointer, then reset it
-        if (!is_null($in_xpathQuery) && !$in_movePointer) {
-            $this->_restore_bookmark();
-        }
-        return true;
     }
 
     // }}}

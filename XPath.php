@@ -41,13 +41,14 @@ define('XML_XPATH_INVALID_QUERY',          -4);
 define('XML_XPATH_NO_DOM',                 -5);
 define('XML_XPATH_INVALID_INDEX',          -6);
 define('XML_XPATH_INVALID_NODESET',        -7);
-define('XML_XPATH_NOT_LOADED',             -8);
-define('XML_XPATH_INVALID_NODETYPE',       -9);
-define('XML_XPATH_FILE_NOT_WRITABLE',     -10);
-define('XML_XPATH_NODE_REQUIRED',         -11);
-define('XML_XPATH_INDEX_SIZE',            -12);
-define('XML_PARSE_ERROR',                 -13);
-define('XML_DUPLICATE_ROOT',              -14);
+define('XML_XPATH_NULL_POINTER',           -8);
+define('XML_XPATH_NOT_LOADED',             -9);
+define('XML_XPATH_INVALID_NODETYPE',      -10);
+define('XML_XPATH_FILE_NOT_WRITABLE',     -11);
+define('XML_XPATH_NODE_REQUIRED',         -12);
+define('XML_XPATH_INDEX_SIZE',            -13);
+define('XML_PARSE_ERROR',                 -14);
+define('XML_DUPLICATE_ROOT',              -15);
 
 // }}}
 // {{{ includes
@@ -191,31 +192,43 @@ class XML_XPath extends XML_XPath_common {
      * @access public
      * @return object result object {or XML_XPath_Error exception}
      */
-    function evaluate($in_xpathQuery, $in_movePointer = false, $in_relative = false) 
+    function &evaluate($in_xpathQuery, $in_movePointer = false) 
     {
         // Make sure we have loaded an xml document and were able to create an xpath context
-        if (!is_a_php_class($this->ctx, 'xpathcontext')) {
+        if (get_class($this->ctx) != 'XPathContext') {
             return PEAR::raiseError(null, XML_XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XML_XPath_Error', true);
         }
 
-        if ($in_relative) {
+        // enable relative xpath queries (I don't check a valid dom object yet)
+        settype($in_xpathQuery, 'array');
+        if (isset($in_xpathQuery[1])) {
             $sep = '/';
             // those double slashes cause an anomally
-            if (substr($in_xpathQuery, 0, 2) == '//') {
+            if (substr($in_xpathQuery[0], 0, 2) == '//') {
                 $sep = '';
             }
+            
+            if ($in_xpathQuery[1] == 'current()') {
+                $in_xpathQuery[1] = $this->getNodePath($this->pointer);
+            }
+            else {
+                $in_xpathQuery[1] = $this->getNodePath($in_xpathQuery[1]);
+            }
 
-            $in_xpathQuery = $this->getNodePath($this->pointer) . $sep . $in_xpathQuery;
+            $xpathQuery = $in_xpathQuery[1] . $sep . $in_xpathQuery[0];
+        }
+        else {
+            $xpathQuery = reset($in_xpathQuery);
         }
 
-        if (!$result = @xpath_eval($this->ctx, $in_xpathQuery)) {
-            return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_WARNING, "XML_XPath query: $in_xpathQuery", 'XML_XPath_Error', true);
+        if (!$result = @xpath_eval($this->ctx, $xpathQuery)) {
+            return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_WARNING, "XML_XPath query: $xpathQuery", 'XML_XPath_Error', true);
         }
 
-        $resultObj = new XML_XPath_result($result, $in_xpathQuery, $this->xml, $this->ctx);
+        $resultObj =& new XML_XPath_result($result->type == XPATH_NODESET ? $result->nodeset : $result->value, $result->type, $xpathQuery, $this->ctx);
 
-        if ($in_movePointer && $resultObj->resultType() == XPATH_NODESET && $resultObj->numResults()) {
-            $this->setPointer($resultObj->getPointer());
+        if ($in_movePointer && $result->type == XPATH_NODESET && !empty($result->nodeset)) {
+            $this->pointer = reset($result->nodeset);
         }
 
         return $resultObj;
@@ -265,6 +278,7 @@ class XML_XPath extends XML_XPath_common {
                 XML_XPATH_INVALID_INDEX         => 'invalid index',
                 XML_XPATH_INVALID_NODESET       => 'requires nodeset and one of appropriate type',
                 XML_XPATH_NOT_LOADED            => 'DomDocument has not been loaded',
+                XML_XPATH_NULL_POINTER          => 'Null pointer, probably due to empty result object',
                 XML_XPATH_INVALID_NODETYPE      => 'invalid nodetype for requested feature',
                 XML_XPATH_FILE_NOT_WRITABLE     => 'file could not be written',
                 XML_XPATH_NODE_REQUIRED         => 'DomNode required for operation',

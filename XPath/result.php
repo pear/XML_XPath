@@ -56,41 +56,44 @@ define('XML_XPATH_SORT_NATURAL_DESCENDING', 6);
 class XML_XPath_result extends XML_XPath_common {
     // {{{ properties
 
-    /** @var object reference to result object */
-    var $result;
-
-    /** @var string original xpath query, stored just for debug info */
+    /**
+     * original xpath query, stored when we need to sort
+     * @var string $query
+     */
     var $query;
 
-    /** @var int current index of the result set */
-    var $index;
+    /**
+     * determines if we have counted the first node of the result nodeset
+     * @var boolean $isRewound
+     */
+    var $isRewound;
     
-    /** @var boolean determines if we have counted the first node */
-    var $rewound;
-    
-    /** @var int one of 4 constants that correspond to the xpath result types */
+    /**
+     * The type of result that the query generated
+     * @var int $type
+     */
     var $type;
 
-    /** @var mixed either array of nodesets, string, boolean or number from xpath result */
+    /**
+     * either array of nodesets, string, boolean or number from xpath/DOM query
+     * @var mixed $data
+     */
     var $data;
     
-    /** @var object pointer to xml data object */
-    var $xml;
-
-    /** @var object pointer to xpath context object for the xml data object */
+    /**
+     * xpath context object for the current domxml object
+     * @var object $ctx
+     */
     var $ctx;
 
     // }}}
     // {{{ constructor
 
-    function XML_XPath_result($in_result, $in_query, &$in_xml, &$in_ctx) 
+    function XML_XPath_result($in_data, $in_type, $in_query, &$in_ctx) 
     {
-        $this->result = &$in_result; 
         $this->query = $in_query;
-        $this->type = $this->result->type;
-        $this->data = isset($this->result->nodeset) ? $this->result->nodeset : $this->result->value;
-        $this->index = 0;
-        $this->xml = &$in_xml;
+        $this->type = $in_type;
+        $this->data = $in_data;
         $this->ctx = &$in_ctx;
         // move the pointer to the first node if at least one node in the result exists
         // for convience, just so we don't have to call nextNode() if we expect only one
@@ -114,7 +117,7 @@ class XML_XPath_result extends XML_XPath_common {
                 return $this->data ? true : false;
                 break;
             case XPATH_NODESET:
-                return $this->isNodeType(XML_ATTRIBUTE_NODE) ? $this->pointer->value() : $this->substringData();
+                return $this->pointer->node_type() == XML_ATTRIBUTE_NODE ? $this->pointer->value() : $this->substringData();
                 break;
             case XPATH_STRING:
             case XPATH_NUMBER:
@@ -166,15 +169,17 @@ class XML_XPath_result extends XML_XPath_common {
     }
 
     // }}}
-    // {{{ void    sort()
+    // {{{ boolean sort()
 
     /**
      * Sort the nodeset in this result.  The sort can be either ascending or descending, and
      * the comparisons can be text, number or natural (see the constants above). The sort
      * axis is provided as an xpath query and is the location path relative to the node given.
      * For example, so sort on an attribute, you would provide '@foo' and it will look at the
-     * attribute for each node.  If the axis is not found, it comes first in the sort order for
-     * ascending order.
+     * attribute for each node.
+     *
+     * NOTE: If the axis is not found, the node will comes first in the sort order for ascending 
+     * order and at the end for descending orde.
      *
      * @param  string $in_sortXpath relative xpath query location to each node in nodeset
      * @param  int $in_order either XML_XPATH_SORT_TEXT_[DE|A]SCENDING, 
@@ -182,43 +187,73 @@ class XML_XPath_result extends XML_XPath_common {
      *                              XML_XPATH_SORT_NATURAL_[DE|A]SCENDING
      *
      * @access public
-     * @return void {or XML_XPath_Error exception}
+     * @return boolean success {or XML_XPath_Error exception}
      */
     function sort($in_sortXpath = '.', $in_order = XML_XPATH_SORT_TEXT_ASCENDING) 
     {
-        if ($this->resultType() != XPATH_NODESET) {
+        // make sure we are dealing with a result that is a nodeset
+        if ($this->type != XPATH_NODESET) {
             return PEAR::raiseError(null, XML_XPATH_INVALID_NODESET, null, E_USER_NOTICE, $this->data, 'XPath_Error', true);
         }
-        if ($in_sortXpath == '') {
-            $in_sortXpath = '.';
-        }
-        $xpathResult = @$this->ctx->xpath_eval($this->query . '/' . $in_sortXpath . '|' . $this->query);
-        if (!$xpathResult || !$xpathResult->nodeset) {
-            return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_NOTICE, "Query {$this->query}/$in_sortXPath", 'XML_XPath_Error', true);
-        }
+
         $data = array();
-        $this->index = 0;
-        if (sizeof($xpathResult->nodeset) == sizeof($this->data)) {
-            foreach ($xpathResult->nodeset as $index => $node) {
-                array_push($data, $xpathResult->nodeset[$index]->get_content());
+
+        // we don't need to run it again if we are soring on the current node values
+        if ($in_sortXpath == '' || $in_sortXpath == '.') {
+            foreach ($this->data as $index => $node) {
+                $data[] = $node->get_content();
             }
         }
+        // we need to run the query again
         else {
-            foreach ($xpathResult->nodeset as $index => $node) {
-                if (!isset($this->data[$this->index]) || $node != $this->data[$this->index]) {
-                    continue;
-                }
+            // we never actually ran the query, but we can rebuild it...and we will do that now
+            // this is for DOM queries, such as childNodes() and getElementsByTagName()
+            if (is_array($this->query)) {
+                $this->query = $this->getNodePath(reset($this->query)) . end($this->query);
+            }
 
-                if (isset($xpathResult->nodeset[$index + 1])) {
-                    if ($xpathResult->nodeset[$index + 1] == $this->data[$this->index]) {
-                        array_push($data, '');
+            // here I am reissuing the query, but with the sort path appended followed by the
+            // node in a logical 'OR'.  The trick here is that I can keep the original nodes
+            // in sorted order and then just weed out the nodes I used to sort.
+            $xpathResult = @$this->ctx->xpath_eval($this->query . '/' . $in_sortXpath . '|' . $this->query);
+            if (!$xpathResult || empty($xpathResult->nodeset)) {
+                return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_NOTICE, "Query {$this->query}/$in_sortXPath", 'XML_XPath_Error', true);
+            }
+
+            // Sorting Process: 
+            // The reason we did a double query is so that we could line up the original nodes
+            // with the original data set, fill in any parts of the sorted nodeset that have
+            // missing sort nodes, sort the sorted nodeset and then reindex the original data array
+
+            $origIndex = 0;
+            $sortIndex = 0;
+            while(isset($this->data[$origIndex])) {
+                // make sure we are lined up on original nodes, then we can proceed to check
+                // the next node in each nodeset to determine of the sort node was found
+                if ($this->data[$origIndex] == $xpathResult->nodeset[$sortIndex]) {
+                    $origIndex++;
+                    $sortIndex++;
+                    // make sure we have not advanced beyond the end of the sort nodeset
+                    if (isset($xpathResult->nodeset[$sortIndex])) {
+                        // if the values of the next two indices of the sort nodeset and the
+                        // original nodeset are the same, we had a missing node
+                        if (isset($this->data[$origIndex]) && $this->data[$origIndex] == $xpathResult->nodeset[$sortIndex]) {
+                            $data[] = '';
+                        }
+                        // okay, they were different, we found a sort node, get its value
+                        else {
+                            $data[] = $xpathResult->nodeset[$sortIndex]->get_content();
+                        }
                     }
+                    // the last sort nodeset element is missing, which means the sort nodeset
+                    // was missing the last sort node
                     else {
-                        array_push($data, $xpathResult->nodeset[$index + 1]->get_content());
+                        $data[] = '';
                     }
                 }
-
-                $this->index++;
+                else {
+                    $sortIndex++;
+                }
             }
         }
 
@@ -245,21 +280,26 @@ class XML_XPath_result extends XML_XPath_common {
 
             case XML_XPATH_SORT_NATURAL_DESCENDING:
                 natsort($data);
-                $data = array_reverse($data, TRUE);
+                $data = array_reverse($data, true);
             break;
 
             default:
                 asort($data);
             break;
         }
+
         $dataReordered = array();
-        $this->index = 0;
+        // this is NOT just array_values, we need to use the keys to put the values
+        // in the correct order
         foreach ($data as $reindex => $value) {
-            $dataReordered[$this->index++] = $this->data[$reindex];
+            $dataReordered[] = $this->data[$reindex];
         }
+
         $this->data = $dataReordered;
-        $this->index = 0;
-        $this->pointer = $this->data[$this->index];
+        // rewind to the beginning of the data set
+        $this->rewind();
+
+        return true;
     }
      
     // }}}
@@ -275,7 +315,7 @@ class XML_XPath_result extends XML_XPath_common {
     {
         if (is_array($this->data)) {
             $this->pointer = reset($this->data);
-            $this->rewound = true;
+            $this->isRewound = true;
             return true;
         }
         
@@ -299,8 +339,8 @@ class XML_XPath_result extends XML_XPath_common {
     function next()
     {
         if (is_array($this->data)) {
-            if ($this->rewound) {
-                $this->rewound = false;
+            if ($this->isRewound) {
+                $this->isRewound = false;
                 $seekFunction = 'reset';
             }
             else {
@@ -332,8 +372,8 @@ class XML_XPath_result extends XML_XPath_common {
     function nextByNodeName($in_name)
     {
         if (is_array($this->data)) {
-            if ($this->rewound) {
-                $this->rewound = false;
+            if ($this->isRewound) {
+                $this->isRewound = false;
                 if (($node = reset($this->data)) && $node->node_name() == $in_name) {
                     $this->pointer = $node;
                     return true;
@@ -367,8 +407,8 @@ class XML_XPath_result extends XML_XPath_common {
     function nextByNodeType($in_type)
     {
         if (is_array($this->data)) {
-            if ($this->rewound) {
-                $this->rewound = false;
+            if ($this->isRewound) {
+                $this->isRewound = false;
                 if (($node = reset($this->data)) && $node->node_type() == $in_type) {
                     $this->pointer = $node;
                     return true;
