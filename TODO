@@ -17,7 +17,9 @@ XML_XPath Inteface TODO:
 
   [@]     prevent duplicate root in appendChild()
   
-  [*]     make an example.php and example.out for people to read through
+  [@]     make an example.php and example.out for people to read through (Cooker)
+
+  [@]     implement childNodes() to return an xml_xpath_result object
 
   [*]     make a short test harness just so I know I don't commit bad shit
   
@@ -28,3 +30,10 @@ XML_XPath Inteface TODO:
           now
 
   [*]     considering doing substringData for attribute nodes...just seems to make sense
+
+  [*]     in _quick_evaluate_init, make sure the pointer is not null, could happen coming
+          off of a results object
+
+  [*]     it would be better if getChildNodeByName() and getSiblingNodeByName() (not called that
+          now, but should be called that) are result object generation functions...this way
+          we can seperate the cache from getting mixed up in bad instances...word...
