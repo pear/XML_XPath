@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<!DOCTYPE package SYSTEM "../package.dtd">
+<!DOCTYPE package SYSTEM "http://pear.php.net/dtd/package-1.0">
 <package version="1.0" type="source">
   <name>XML_XPath</name>
   <summary>The PEAR::XML_XPath class provided an XPath/DOM XML manipulation, maneuvering and query interface.</summary>
