@@ -97,7 +97,7 @@ function is_a_php_class($class, $match)
  *              an xpath query is executed and can be used to cycle through the
  *              result nodeset or data
  *
- * @version  Revision: 1.0
+ * @version  Revision: 1.1
  * @author   Dan Allen <dan@mojavelinux.com>
  * @access   public
  * @since    PHP 4.2.1

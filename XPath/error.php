@@ -31,7 +31,7 @@
 /**
  * Error class for the XML_XPath interface, which just prepares some variables and spawns PEAR_Error
  *
- * @version  Revision: 1.0
+ * @version  Revision: 1.1
  * @author   Dan Allen <dan@mojavelinux.com>
  * @access   public
  * @since    PHP 4.2.1

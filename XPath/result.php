@@ -45,7 +45,7 @@ define('XML_XPATH_SORT_NATURAL_DESCENDING', 6);
  * Interface for an XML_XPath result so that one can cycle through the result set and manipulate
  * the main tree with DOM methods using a seperate pointer then the original class.
  *
- * @version  Revision: 1.0
+ * @version  Revision: 1.1
  * @author   Dan Allen <dan@mojavelinux.com>
  * @access   public
  * @since    PHP 4.2.1

@@ -1,39 +1,46 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 <!DOCTYPE package SYSTEM "../package.dtd">
-<package version="1.0">
+<package version="1.0" type="source">
   <name>XML_XPath</name>
-  <summary>Xpath/DOM XML manipulation, maneuvering and query interface.</summary>
-    <description>
-      Allows for easy manipulation, maneuvering and querying of a domxml tree using
-      both xpath queries and DOM walk functions.  It uses an internal pointer for all
-      methods on which the action is performed.  Results from an xpath query are returned
-      as an XPath_Result object, which contains all the DOM functions from the main object.
-      This class tries to hold as close as possible to the DOM Recommendation.
+  <summary>The PEAR::XML_XPath class provided an XPath/DOM XML manipulation, maneuvering and query interface.</summary>
+  <description>
+    The PEAR::XML_XPath class provided an XPath/DOM XML manipulation, maneuvering and 
+    query interface.
 
-      The XML_XPath class was inpired by a class maintained by Nigel Swinson called phpxpath.
-      The phpxpath class does not rely on PHP xmldom functions and is therefore a sibling to
-      this class: http://sourceforge.net/projects/phpxpath
-    </description>
-    <maintainers>
-      <maintainer>
-        <user>dallen</user>
-        <name>Dan Allen</name>
-        <email>dallen@php.net</email>
-        <role>lead</role>
-      </maintainer>
-    </maintainers>
+    The class allows for easy manipulation, maneuvering and querying of a domxml tree using
+    both xpath queries and DOM walk functions.  It uses an internal pointer for all
+    methods on which the action is performed.  Results from an dom/xpath query are returned
+    as an XPath_Result object, which contains an internal array of DOM nodes and which extends 
+    the common DOM class and hence contains all the DOM functions from the main object to run
+    on each of the elements in the internal array.  This class tries to hold as close as possible       to the DOM Recommendation.  You MUST have the domxml extension to use this class.
+
+    The XML_XPath class was inspired by a class maintained by Nigel Swinson called phpxpath.
+    The phpxpath class does not rely on PHP xmldom functions and is therefore a sibling to
+    this class: http://sourceforge.net/projects/phpxpath
+  </description>
+  <maintainers>
+    <maintainer>
+      <user>dallen</user>
+      <name>Dan Allen</name>
+      <email>dallen@php.net</email>
+      <role>lead</role>
+    </maintainer>
+  </maintainers>
+  <release>
+    <license>PHP License</license>
+    <date>2002-05-23</date>
+    <state>beta</state>
+    <version>1.1</version>
     <deps>
       <dep type="php" rel="ge" version="4.2.1" />
+      <dep type="ext" rel="has">domxml</dep>
     </deps>
-    <release>
-      <license>PHP 2.01</license>
-      <state>beta</state>
-      <version>1.0</version>
-      <date>2002-05-23</date>
-      <notes>
-         This is the initial independent PEAR release.
-      </notes>
-      <filelist>
+    <notes>
+      * relative XPath queries
+      * enhancements to result object
+      * addition DOM functions (childNodes(), getElementsByTagName())
+    </notes>
+    <filelist>
       <dir name="/" baseinstalldir="XML">
         <file role="php">XPath.php</file>
         <dir name="XPath">
@@ -41,7 +48,37 @@
           <file role="php">result.php</file>
           <file role="php">error.php</file>
         </dir>
+        <dir name="docs" role="doc">
+          <file>XML_XPath_example.php</file>
+        </dir>
       </dir>
     </filelist>
   </release>
+  <changelog>
+    <release>
+      <version>1.0</version>
+      <date>2002-05-23</date>
+      <state>beta</state>
+      <notes>
+        This is the initial independent PEAR release.
+      </notes>
+    </release>
+    <release>
+      <version>1.1</version>
+      <date>2002-06-06</date>
+      <state>beta</state>
+      <notes>
+       This version brings major enhancements to the API
+ * childNode(), siblingNode() removed and features are relocated
+ * added childNodes() which returns an XML_XPath_result object of all children
+ * added getElementByTagName which returns an XML_XPath_result object of all matching tags
+ * step functions in result object are now next(), end(), rewind() and nextByNode(Name|Type)
+ * calling next() after rewind() in the result object counts the first object again, so a regular
+   while loop can be used
+ * relative XPath queries are now enabled (getNodePath() provides this functionality) 
+ * better error reports generated and will continue to improve with the domxml extension
+ * setNodeIndex() in result object removed
+      </notes>
+    </release>
+  </changelog>
 </package>

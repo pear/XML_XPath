@@ -53,9 +53,9 @@ define('XML_DUPLICATE_ROOT',              -14);
 // {{{ includes
 
 require_once 'PEAR.php';
-require_once dirname(__FILE__) . '/XPath/common.php';
-require_once dirname(__FILE__) . '/XPath/result.php';
-require_once dirname(__FILE__) . '/XPath/error.php';
+require_once 'XPath/common.php';
+require_once 'XPath/result.php';
+require_once 'XPath/error.php';
 
 // }}}
 
@@ -65,7 +65,7 @@ require_once dirname(__FILE__) . '/XPath/error.php';
  * The main "XML_XPath" class is simply a container class with some methods for
  * creating DOM xml objects and preparing error codes
  *
- * @version  Revision: 1.0
+ * @version  Revision: 1.1
  * @author   Dan Allen <dan@mojavelinux.com>
  * @access   public
  * @since    PHP 4.2.1
