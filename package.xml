@@ -39,6 +39,7 @@
         <dir name="XPath">
           <file role="php">common.php</file>
           <file role="php">result.php</file>
+          <file role="php">error.php</file>
         </dir>
       </dir>
     </filelist>
