@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE package SYSTEM "../package.dtd">
+<package version="1.0">
+  <name>XML_XPath</name>
+  <summary>Xpath/DOM XML manipulation, maneuvering and query interface.</summary>
+    <description>
+      Allows for easy manipulation, maneuvering and querying of a domxml tree using
+      both xpath queries and DOM walk functions.  It uses an internal pointer for all
+      methods on which the action is performed.  Results from an xpath query are returned
+      as an XPath_Result object, which contains all the DOM functions from the main object.
+      This class tries to hold as close as possible to the DOM Recommendation.
+    </description>
+    <maintainers>
+      <maintainer>
+        <user>dallen</user>
+        <name>Dan Allen</name>
+        <email>dallen@php.net</email>
+      </maintainer>
+    </maintainers>
+    <release>
+      <version>1.1</version>
+      <date>2002-03-10</date>
+      <notes>
+         This is the initial independent PEAR release.
+      </notes>
+      <filelist>
+      <dir name="/" baseinstalldir="XML">
+        <file role="php">XPath.php</file>
+        <dir name="XPath">
+          <file role="php">common.php</file>
+          <file role="php">result.php</file>
+        </dir>
+      </dir>
+    </filelist>
+  </release>
+</package>
