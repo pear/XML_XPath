@@ -728,12 +728,16 @@ class XPath_common {
      *
      * @access public
      * @return object pointer to the first of the nodes appended {or XPath_Error exception}
-     * ??? should we allow this if they already have a root for document node ??? *
      */
     function appendChild($in_xmlData, $in_xpathQuery = null, $in_movePointer = false) 
     {
         if (XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE, XML_DOCUMENT_NODE)))) {
             return $result;
+        }
+        // if this is a document node, make sure no root exists
+        if ($this->isNodeType(XML_DOCUMENT_NODE) && $this->xml->root()) {
+            $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+            return PEAR::raiseError(null, XML_DUPLICATE_ROOT, null, E_USER_WARNING, null, 'XPath_Error', true);
         }
 
         if (XPath::isError($importedNodes = $this->_build_fragment($in_xmlData))) {
@@ -745,9 +749,7 @@ class XPath_common {
                 $newNode = $node;
             }
         }
-
         $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
-
         return $newNode;
     }
 
