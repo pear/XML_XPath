@@ -1,0 +1,28 @@
+XML_XPath Inteface TODO:
+-----------------------------
+[@]        = all done
+[*]        = bug request/fix
+---        = in progress
+[?]        = not necessary
+-----------------------------
+
+ Status   Description
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+  
+  [*]     A more formal and informative interface to the load() function
+
+  [*]     make an example.php and example.out for people to read through
+
+  [*]     make a short test harness just so I know I don't commit bad shit
+  
+  [@]     prevent duplicate root in appendChild()
+  
+  [*]     finally figured out substitute entities default, so see if we can make this
+          usable in the class
+
+  [*]     implement getElementsByTagName and getElementById since there are domxml functions
+          now
+
+  [*]     considering doing substringData for attribute nodes...just seems to make sense
+
+  [@]     sort for results
