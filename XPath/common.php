@@ -195,12 +195,16 @@ class XPath_common {
         $next = $this->pointer->next_sibling();
         if ($this->skipBlanks) {
             while (true) {
-                $next = $next->next_sibling();
-                // we have found a non-blank node
-                if (!$next->is_blank_node()) {
+                // make sure we are not already at the end
+                if (!$next) {
+                    $next = false;
                     break;
                 }
-                // we have arrived at the end
+                // we have found a non-blank node
+                elseif (!$next->is_blank_node()) {
+                    break;
+                }
+                // we found a blank node at the very end
                 elseif (!$next = $next->next_sibling()) {
                     $next = false;
                     break;
