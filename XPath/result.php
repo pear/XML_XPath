@@ -35,6 +35,9 @@ define('XML_XPATH_SORT_NUMBER_DESCENDING',  5);
 define('XML_XPATH_SORT_NATURAL_DESCENDING', 6);
 
 // }}}
+/**
+ I need to handle sort when result is retrieved using childNodes()
+ */
 
 // {{{ class XML_XPath_result
 
@@ -62,6 +65,9 @@ class XML_XPath_result extends XML_XPath_common {
     /** @var int current index of the result set */
     var $index;
     
+    /** @var boolean determines if we have counted the first node */
+    var $rewound;
+    
     /** @var int one of 4 constants that correspond to the xpath result types */
     var $type;
 
@@ -88,9 +94,7 @@ class XML_XPath_result extends XML_XPath_common {
         $this->ctx = &$in_ctx;
         // move the pointer to the first node if at least one node in the result exists
         // for convience, just so we don't have to call nextNode() if we expect only one
-        if ($this->type == XPATH_NODESET && !empty($this->data)) {
-            $this->pointer = $this->data[0];
-        }
+        $this->rewind();
     }
 
     // }}}
@@ -144,83 +148,21 @@ class XML_XPath_result extends XML_XPath_common {
      * @return int number of results returned by xpath query
      */
     function numResults() {
-        return sizeOf($this->data);
+        return count($this->data);
     }
 
     // }}}
-    // {{{ boolean nextNode()
+    // {{{ int     getIndex()
 
     /**
-     * Move to the next node in the nodeset of results.  This can be used inside of a
-     * while loop, so that it is possible to step through the nodes one by one.
-     *
-     * @access public
-     * @return boolean next node existed and pointer moved
-     */
-    function nextNode()
-    {
-        if (sizeOf($this->data) > $this->index) {
-            $this->index++; 
-            $this->pointer = $this->data[$this->index - 1];
-            return true;
-        }
-        else {
-            return false;
-        }
-    }
-
-    // }}}
-    // {{{ int     getNodeIndex()
-
-    /**
-     * Return the index of the result nodeset.  This index is 1 based, and 0 means that the
-     * result nodeset is reset.
+     * Return the index of the result nodeset.
      *
      * @access public
      * @return int current index of the result nodeset
      */
-    function getNodeIndex()
+    function getIndex()
     {
-        return $this->index;
-    }
-
-    // }}}
-    // {{{ void    setNodeIndex()
-
-    /**
-     * Explicitly set the node index for the result nodeset.  This can be used for stepping
-     * through the result nodeset manually, and can be used in conjunction with numResults()
-     * The function takes either an numeric index (1 based) or the words 'first' or 'last'
-     *
-     * @param mixed  $in_index either an integer index or the string 'first' or 'last'
-     *
-     * @access public
-     * @return void {or XML_XPath_Error exception}
-     */
-    function setNodeIndex($in_index) 
-    {
-        if (!$this->type == XPATH_NODESET) {
-            return PEAR::raiseError(null, XML_XPATH_INVALID_NODESET, null, E_USER_NOTICE, "Cannot assign index $in_index to non-nodeset result in query {$this->query}", 'XML_XPath_Error', true);
-        }
-        if ($in_index == 'last') {
-            $this->index = sizeOf($this->data);
-        }
-        elseif ($in_index == 'first') {
-            $this->index = 1;
-        }
-        elseif (is_int($in_index)) {
-            if ($in_index > sizeOf($this->data)) {
-                return PEAR::raiseError(null, XML_XPATH_INVALID_INDEX, null, E_USER_NOTICE, "Invalid index $in_index in query {$this->query}", 'XML_XPath_Error', true);
-            }
-            elseif ($in_index > 0) {
-                $this->index = $in_index; 
-            }
-            else {
-                return PEAR::raiseError(null, XML_XPATH_INVALID_INDEX, null, E_USER_NOTICE, "Negative index $in_index is invalid", 'XML_XPath_Error', true);
-            }
-        }
-        $this->pointer = $this->data[$this->index];
-        return true;
+        return key($this->data);
     }
 
     // }}}
@@ -321,17 +263,146 @@ class XML_XPath_result extends XML_XPath_common {
     }
      
     // }}}
-    // {{{ void    reset()
+    // {{{ boolean rewind()
 
     /**
-     * Reset the result index back to the beginning.
+     * Reset the result index back to the beginning, if this is an XPATH_NODESET
      *
      * @access public
-     * @return void
+     * @return boolean success
      */
-    function reset()
+    function rewind()
     {
-        $this->index = 0;
+        if (is_array($this->data)) {
+            $this->pointer = reset($this->data);
+            $this->rewound = true;
+            return true;
+        }
+        
+        return false;
+    }
+
+    // }}}
+    // {{{ boolean next()
+
+    /**
+     * Move to the next node in the nodeset of results.  This can be used inside of a
+     * while loop, so that it is possible to step through the nodes one by one.
+     * It is important to note that the first call to next will put the pointer at
+     * the first index and not the second...this is just a more convenient way of
+     * handling the logic.  If you rewind() the data and then call next() as the conditional
+     * on a while loop, you can work through each of the results from the first to the last.
+     *
+     * @access public
+     * @return boolean success node found and pointer advanced
+     */
+    function next()
+    {
+        if (is_array($this->data)) {
+            if ($this->rewound) {
+                $this->rewound = false;
+                $seekFunction = 'reset';
+            }
+            else {
+                $seekFunction = 'next';
+            }
+
+            if ($node = $seekFunction($this->data)) {
+                $this->pointer = $node;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // }}}
+    // {{{ boolean nextByNodeName()
+
+    /**
+     * Move to the next node in the nodeset of results where the node has the name provided.
+     * This can be used inside of a while loop, so that it is possible to step through the 
+     * nodes one by one.
+     *
+     * @param  string $in_name name of node to find
+     *
+     * @access public
+     * @return boolean next node existed and pointer moved
+     */
+    function nextByNodeName($in_name)
+    {
+        if (is_array($this->data)) {
+            if ($this->rewound) {
+                $this->rewound = false;
+                if (($node = reset($this->data)) && $node->node_name() == $in_name) {
+                    $this->pointer = $node;
+                    return true;
+                }
+            }
+
+            while ($node = next($this->data)) {
+                if ($node->node_name() == $in_name) {
+                    $this->pointer = $node;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // }}}
+    // {{{ boolean nextByNodeType()
+
+    /**
+     * Move to the next node in the nodeset of results where the node has the type provided.
+     * This can be used inside of a while loop, so that it is possible to step through the 
+     * nodes one by one.
+     *
+     * @param  int  $in_type type of node to find
+     *
+     * @access public
+     * @return boolean next node existed and pointer moved
+     */
+    function nextByNodeType($in_type)
+    {
+        if (is_array($this->data)) {
+            if ($this->rewound) {
+                $this->rewound = false;
+                if (($node = reset($this->data)) && $node->node_type() == $in_type) {
+                    $this->pointer = $node;
+                    return true;
+                }
+            }
+
+            while ($node = next($this->data)) {
+                if ($node->node_type() == $in_type) {
+                    $this->pointer = $node;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // }}}
+    // {{{ boolean end()
+
+    /**
+     * Move to last result node, if this is an XPATH_NODESET
+     *
+     * @access public
+     * @return boolean success
+     */
+    function end()
+    {
+        if (is_array($this->data)) {
+            $this->pointer = end($this->data);
+            return true;
+        }
+
+        return false;
     }
 
     // }}}
