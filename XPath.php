@@ -122,22 +122,27 @@ class XML_XPath extends XML_XPath_common {
         if ($this->loaded) {
             return PEAR::raiseError(null, XML_XPATH_ALREADY_EXISTS, null, E_USER_WARNING, $this->xml->root(), 'XML_XPath_Error', true);
         }
+        // we need to capture errors, since there is not interface for this
+        ob_start();
         // in this case, we already have an xmldom object
         if ($in_type == 'object' && get_class($in_xml) == 'DomDocument') {
             $this->xml = $in_xml;
         }
         // we can read the file, so use xmldocfile to make a xmldom object
         elseif ($in_type == 'file' && @file_exists($in_xml)) {
-            $this->xml = @domxml_open_file($in_xml);
+            $this->xml = domxml_open_file($in_xml);
         }
         // this is a string, so attempt to make an xmldom object from string
         elseif($in_type == 'string' && is_string($in_xml)) {
-            $this->xml = @domxml_open_mem($in_xml);
+            $this->xml = domxml_open_mem($in_xml);
         }
         // not a valid xml instance, so throw error
         else {
+            ob_end_clean();
             return PEAR::raiseError(null, XML_XPATH_INVALID_DOCUMENT, null, E_USER_ERROR, "The xml data '$in_xml' could not be parsed to xml dom", 'XML_XPath_Error', true);
         }
+        $loadError = ob_get_contents();
+        ob_end_clean();
         // make sure a domxml object was created, and if so initialized the state
         if (get_class($this->xml) == 'DomDocument') {
             $this->loaded = true;
@@ -147,7 +152,7 @@ class XML_XPath extends XML_XPath_common {
         }
         // we could not make a domxml object, so throw an error
         else {
-            return PEAR::raiseError(null, XML_XPATH_NO_DOM, null, E_USER_ERROR, "A DomDocument could not be instantiated from '$in_xml'", 'XML_XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_NO_DOM, null, E_USER_ERROR, "<b>libxml2 Message:</b> $loadError <b>Document:</b> $in_xml", 'XML_XPath_Error', true);
         }
     }
  
