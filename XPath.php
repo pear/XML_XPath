@@ -191,20 +191,33 @@ class XML_XPath extends XML_XPath_common {
      * @access public
      * @return object result object {or XML_XPath_Error exception}
      */
-    function evaluate($in_xpathQuery, $in_movePointer = false) 
+    function evaluate($in_xpathQuery, $in_movePointer = false, $in_relative = false) 
     {
         // Make sure we have loaded an xml document and were able to create an xpath context
         if (!is_a_php_class($this->ctx, 'xpathcontext')) {
             return PEAR::raiseError(null, XML_XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XML_XPath_Error', true);
         }
+
+        if ($in_relative) {
+            $sep = '/';
+            // those double slashes cause an anomally
+            if (substr($in_xpathQuery, 0, 2) == '//') {
+                $sep = '';
+            }
+
+            $in_xpathQuery = $this->getNodePath($this->pointer) . $sep . $in_xpathQuery;
+        }
+
         if (!$result = @xpath_eval($this->ctx, $in_xpathQuery)) {
             return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_WARNING, "XML_XPath query: $in_xpathQuery", 'XML_XPath_Error', true);
         }
+
         $resultObj = new XML_XPath_result($result, $in_xpathQuery, $this->xml, $this->ctx);
 
         if ($in_movePointer && $resultObj->resultType() == XPATH_NODESET && $resultObj->numResults()) {
             $this->setPointer($resultObj->getPointer());
         }
+
         return $resultObj;
     }
 
