@@ -84,7 +84,7 @@ function is_class_type($class, $match)
  * @author   Dan Allen <dan@mojavelinux.com>
  * @access   public
  * @since    PHP 4.2
- * @package  XML/XPath
+ * @package  XML_XPath
  */
 
 // }}}
@@ -120,7 +120,7 @@ class XPath_common {
         if (XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
-        $nodeName = $this->isNodeType(XML_ATTRIBUTE_NODE) ? $this->pointer->name() : $this->pointer->node_name();
+        $nodeName = $this->pointer->node_name();
         $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
         return $nodeName;
     }

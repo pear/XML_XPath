@@ -34,7 +34,7 @@
  * @author   Dan Allen <dan@mojavelinux.com>
  * @access   public
  * @since    PHP 4.2
- * @package  XML/XPath
+ * @package  XML_XPath
  */
 
 // }}}
@@ -197,7 +197,7 @@ class XPath_result extends XPath_common {
     }
 
     // }}}
-    // {{{ void    reset() ?
+    // {{{ void    resetResults()
 
     /**
      * Reset the result index back to the beginning.
