@@ -27,13 +27,28 @@ XML_XPath Inteface TODO:
           usable in the class
 
   [*]     implement getElementsByTagName and getElementById since there are domxml functions
-          now
+          now...return as getElementsByTagName as XML_XPath_result objects..getElementById
+          will be a move function
 
   [*]     considering doing substringData for attribute nodes...just seems to make sense
 
   [*]     in _quick_evaluate_init, make sure the pointer is not null, could happen coming
           off of a results object
 
-  [*]     it would be better if getChildNodeByName() and getSiblingNodeByName() (not called that
-          now, but should be called that) are result object generation functions...this way
-          we can seperate the cache from getting mixed up in bad instances...word...
+  [@]     functions for result object are now
+          next()
+          rewind()
+          end()
+          nextByNodeName()
+          nextByNodeType()
+
+  [@]     added getNodePath() to get the xpath location of the current node
+
+  [@]     when using next() on XML_XPath_result, it counts the first node the first time, so
+          it moves from off the stage to on the stage the first time, then it moves to the next
+          node after that
+
+  [@]     relative xpath queries
+
+  [*]     fix this stdClass hack we have to do to get the result object to work with non xpath
+          queries (in cases of using dom queries)
