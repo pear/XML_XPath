@@ -1352,14 +1352,19 @@ class XML_XPath_common {
     // {{{ void    evaluate()
 
     /**
-     * Evaluate the xpath expression on the loaded xml document.  An XML_XPath_Result object is
-     * returned which can be used to manipulate the results
+     * Evaluate the xpath expression on the loaded xml document.
+     *
+     * The xpath query provided is evaluated and either an XML_XPath_result object is
+     * returned, or, if the pointer is being moved, it acts like a glorified step function
+     * and moves the pointer to the specified node (or first node if it is a set) and returns
+     * a boolean success
      *
      * @param  string  $in_xpathQuery xpath query
      * @param  boolean $in_movePointer (optional) move internal pointer
      *
      * @access public
-     * @return object result object {or XML_XPath_Error exception}
+     * @return mixed result object or boolean success (for move pointer)
+     * @throws XML_XPath_error XML_XPATH_NOT_LOADED
      */
     function &evaluate($in_xpathQuery, $in_movePointer = false) 
     {
@@ -1380,11 +1385,21 @@ class XML_XPath_common {
             if ($in_xpathQuery[0] == 'current()' || $in_xpathQuery[0] == '.') {
                 $in_xpathQuery[0] = $this->getNodePath($this->pointer);
             }
+            elseif ($in_xpathQuery[0] == 'parent()' || $in_xpathQuery[0] == '..') {
+                if ($this->pointer->node_type() != XML_DOCUMENT_NODE) {
+                    $in_xpathQuery[0] = $this->getNodePath($this->pointer->parent_node());
+                }
+                else {
+                    $in_xpathQuery[0] = $this->getNodePath($this->pointer);
+                }
+            }
             else {
                 $in_xpathQuery[0] = $this->getNodePath($in_xpathQuery[0]);
             }
 
-            $xpathQuery = $in_xpathQuery[0] . $sep . $in_xpathQuery[1];
+            // handle or statements and construct query
+            $parts = explode('|', $in_xpathQuery[1]);
+            $xpathQuery = $in_xpathQuery[0] . $sep . implode('|' . $in_xpathQuery[0] . $sep, $parts);
         }
         else {
             $xpathQuery = reset($in_xpathQuery);
@@ -1555,6 +1570,14 @@ class XML_XPath_common {
                     
                     if ($in_xpathQuery[0] == 'current()' || $in_xpathQuery[0] == '.') {
                         $in_xpathQuery[0] = $this->getNodePath($this->pointer);
+                    }
+                    elseif ($in_xpathQuery[0] == 'parent()' || $in_xpathQuery[0] == '..') {
+                        if ($this->pointer->node_type() != XML_DOCUMENT_NODE) {
+                            $in_xpathQuery[0] = $this->getNodePath($this->pointer->parent_node());
+                        }
+                        else {
+                            $in_xpathQuery[0] = $this->getNodePath($this->pointer);
+                        }
                     }
                     else {
                         $in_xpathQuery[0] = $this->getNodePath($in_xpathQuery[0]);
