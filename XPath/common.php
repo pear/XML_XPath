@@ -386,10 +386,10 @@ class XPath_common {
         // if we have changed locations, then reset the child array
         if ($this->pointer != $previousPointer || $in_clearCache) {
             $previousPointer = $this->pointer;
-            unset($nameList);
+            $nameList = array();
         }
         // if the child array is not set, make it now (can be dangerous)
-        if (!isset($nameList)) {
+        if (empty($nameList)) {
             $childNodes = $this->pointer->children();
             settype($children, 'array');
             foreach ($childNodes as $childNode) {
