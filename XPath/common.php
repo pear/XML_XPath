@@ -362,6 +362,59 @@ class XPath_common {
     }
 
     // }}}
+    // {{{ boolean getChildByTagName()
+
+    /**
+     * Get the direct descendant child based on the tag name of the child.  An index can be 
+     * specified which will get the nth sibling with that name.  This function uses caching of
+     * the child array to speed up multiple uses of it, killing the cache when the internal 
+     * pointer changes (this can be forced). This is not a DOM function, but convienent one.
+     *
+     * @param  string  $in_name        tagname of the child node
+     * @param  int     $in_index       index of the sibling with this tagname (1 based)
+     * @param  boolean $in_movePointer either move the internal pointer or return pointer
+     * @param  boolean $in_clearCache  force clear the cache of the children
+     *
+     * @access public
+     * @return boolean if the pointer could be moved, or pointer if $in_movePointer is false
+     */
+    function getChildByTagName($in_name, $in_index = 1, $in_movePointer = true, $in_clearCache = false)
+    {
+        static $nameList, $previousPointer;
+        settype($in_index, 'int');
+        $index = $in_index > 0 ? $in_index - 1 : 0;
+        // if we have changed locations, then reset the child array
+        if ($this->pointer != $previousPointer || $in_clearCache) {
+            $previousPointer = $this->pointer;
+            unset($nameList);
+        }
+        // if the child array is not set, make it now (can be dangerous)
+        if (!isset($nameList)) {
+            $childNodes = $this->pointer->children();
+            settype($children, 'array');
+            foreach ($childNodes as $childNode) {
+                if ($childNode->is_blank_node() && $this->skipBlanks) {
+                    continue;
+                }
+                $nameList[$childNode->node_name()][] = $childNode;
+            }
+        }
+        // either move the pointer or return it
+        if (isset($nameList[$in_name][$index])) {
+            if ($in_movePointer) {
+                $this->pointer = $nameList[$in_name][$index];
+                return true;
+            }
+            else {
+                return $nameList[$in_name][$index];
+            }
+        }
+        else {
+            return false;
+        }
+    }
+
+    // }}}
     // {{{ boolean isNodeType()
 
     /**
