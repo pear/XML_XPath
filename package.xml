@@ -15,9 +15,15 @@
         <user>dallen</user>
         <name>Dan Allen</name>
         <email>dallen@php.net</email>
+        <role>lead</role>
       </maintainer>
     </maintainers>
+    <deps>
+      <dep type="php" rel="ge" version="4.2.0" />
+    </deps>
     <release>
+      <license>PHP 2.01</license>
+      <state>beta</state>
       <version>1.1</version>
       <date>2002-03-10</date>
       <notes>
