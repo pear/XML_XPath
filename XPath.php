@@ -45,6 +45,7 @@ define("XPATH_FILE_NOT_WRITABLE",     -10);
 define("XPATH_NODE_REQUIRED",         -11);
 define("XPATH_INDEX_SIZE",            -12);
 define("XML_PARSE_ERROR",             -13);
+define("XML_DUPLICATE_ROOT",          -14);
 
 // }}}
 // {{{ includes
@@ -247,7 +248,8 @@ class XPath extends XPath_common {
                 XPATH_FILE_NOT_WRITABLE     => 'file could not be written',
                 XPATH_NODE_REQUIRED         => 'DomNode required for operation',
                 XPATH_INDEX_SIZE            => 'index given out of range',
-                XML_PARSE_ERROR             => 'parse error in xml string'
+                XML_PARSE_ERROR             => 'parse error in xml string',
+                XML_DUPLICATE_ROOT          => 'root element already exists'
             );  
         }
 
@@ -275,6 +277,21 @@ class XPath extends XPath_common {
         $this->ctx = null;
         $this->pointer = null;
         $this->loaded = false;
+    }
+
+    // }}}
+    // {{{ void    free()
+
+    /**
+     * Kill the class object to free memory.  Not really sure how necessary this is, but xml
+     * documents can be pretty big.  This will kill everything, so only use it when you are done
+     *
+     * @access public
+     * @return void
+     */
+    function free()
+    {
+        $this = null;
     }
 
     // }}}
