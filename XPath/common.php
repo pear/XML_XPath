@@ -29,19 +29,17 @@
 # 1          unlink() causes internal corruption and segfault.  If you just replace_node with
 #            empty text node you can emulate the functionality
 #
-# 2          function is_a() is only defined in php CVS, so I implemented it for the time being
-if (!function_exists('is_a')) {
-    function is_a($class, $match) 
-    {
-        if (empty($class)) {
-            return false;
-        }
-        $class = is_object($class) ? get_class($class) : $class;
-        if (strtolower($class) == strtolower($match)) {
-            return true;
-        }
-        return is_a(get_parent_class($class), $match);
+# 2          function is_class_type() is only defined in php CVS, so I implemented it for the time being
+function is_class_type($class, $match) 
+{
+    if (empty($class)) {
+        return false;
     }
+    $class = is_object($class) ? get_class($class) : $class;
+    if (strtolower($class) == strtolower($match)) {
+        return true;
+    }
+    return is_class_type(get_parent_class($class), $match);
 }
 
 // }}}
@@ -1080,7 +1078,7 @@ class XPath_common {
      */
     function _is_dom_node($in_object)
     {
-        return (is_object($in_object) && is_a($in_object, 'domnode'));
+        return (is_object($in_object) && is_class_type($in_object, 'domnode'));
     }
 
     // }}}

@@ -116,7 +116,7 @@ class XPath extends XPath_common {
             return PEAR::raiseError(null, XPATH_ALREADY_EXISTS, null, E_USER_WARNING, $this->xml->root(), 'XPath_Error', true);
         }
         // in this case, we already have an xmldom object
-        if (is_a($in_xml, 'domdocument')) {
+        if (is_class_type($in_xml, 'domdocument')) {
             $this->xml = $in_xml;
         }
         // we can read the file, so use xmldocfile to make a xmldom object
@@ -129,10 +129,10 @@ class XPath extends XPath_common {
         }
         // not a valid xml instance, so throw error
         else {
-            return PEAR::raiseError(null, XPATH_INVALID_DOCUMENT, null, E_USER_ERROR, "The xml document requested <pre>$in_xml</pre> could not be parsed to xml dom", 'XPath_Error', true);
+            return PEAR::raiseError(null, XPATH_INVALID_DOCUMENT, null, E_USER_ERROR, "The xml data '$in_xml' could not be parsed to xml dom", 'XPath_Error', true);
         }
         // make sure a xmldom object was created, and if so initialized the state
-        if (is_a($this->xml, 'domdocument')) {
+        if (is_class_type($this->xml, 'domdocument')) {
             $this->loaded = true;
             $this->ctx = xpath_new_context($this->xml);    
             $this->pointer = $this->xml->root();
@@ -140,7 +140,7 @@ class XPath extends XPath_common {
         }
         // we could not make a xmldom object, so throw an error
         else {
-            return PEAR::raiseError(null, XPATH_NO_DOM, null, E_USER_ERROR, "A DomDocument could not be instantiated from <pre>$in_xml</pre>", 'XPath_Error', true);
+            return PEAR::raiseError(null, XPATH_NO_DOM, null, E_USER_ERROR, "A DomDocument could not be instantiated from '$in_xml'", 'XPath_Error', true);
         }
     }
  
@@ -182,7 +182,7 @@ class XPath extends XPath_common {
     function evaluate($in_xpathQuery, $in_movePointer = false) 
     {
         // Make sure we have loaded an xml document and were able to create an xpath context
-        if (!is_a($this->ctx, 'xpathcontext')) {
+        if (!is_class_type($this->ctx, 'xpathcontext')) {
             return PEAR::raiseError(null, XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XPath_Error', true);
         }
         if (!$result = @xpath_eval($this->ctx, $in_xpathQuery)) {
@@ -209,7 +209,7 @@ class XPath extends XPath_common {
      */
     function isError($in_value)
     {
-        return is_a($in_value, 'xpath_error');
+        return is_class_type($in_value, 'xpath_error');
     }
 
     // }}}
