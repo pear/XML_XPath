@@ -35,9 +35,6 @@ define('XML_XPATH_SORT_NUMBER_DESCENDING',  5);
 define('XML_XPATH_SORT_NATURAL_DESCENDING', 6);
 
 // }}}
-/**
- I need to handle sort when result is retrieved using childNodes()
- */
 
 // {{{ class XML_XPath_result
 
@@ -86,15 +83,21 @@ class XML_XPath_result extends XML_XPath_common {
      */
     var $ctx;
 
+    /**
+     * domxml object, need for many common functions
+     * @var object $xml
+     */
+    var $xml;
     // }}}
     // {{{ constructor
 
-    function XML_XPath_result($in_data, $in_type, $in_query, &$in_ctx) 
+    function XML_XPath_result($in_data, $in_type, $in_query, &$in_ctx, &$in_xml) 
     {
         $this->query = $in_query;
         $this->type = $in_type;
         $this->data = $in_data;
         $this->ctx = &$in_ctx;
+        $this->xml =&$in_xml;
         // move the pointer to the first node if at least one node in the result exists
         // for convience, just so we don't have to call nextNode() if we expect only one
         $this->rewind();
@@ -115,14 +118,21 @@ class XML_XPath_result extends XML_XPath_common {
         switch($this->type) {
             case XPATH_BOOLEAN:
                 return $this->data ? true : false;
-                break;
+            break;
+
             case XPATH_NODESET:
-                return $this->pointer->node_type() == XML_ATTRIBUTE_NODE ? $this->pointer->value() : $this->substringData();
-                break;
+                if (!$this->pointer) {
+                    return null;
+                }
+                else {
+                    return $this->pointer->node_type() == XML_ATTRIBUTE_NODE ? $this->pointer->value() : $this->substringData();
+                }
+            break;
+
             case XPATH_STRING:
             case XPATH_NUMBER:
                 return $this->data;
-                break;
+            break;
         }
     }
 
@@ -423,6 +433,27 @@ class XML_XPath_result extends XML_XPath_common {
             }
         }
 
+        return false;
+    }
+
+    // }}}
+    // {{{ object  current()
+
+    /**
+     * Retrieve current pointer
+     *
+     * If the result is a nodeset (which is the most common use of the result object) than
+     * this function returns the current pointer in the result array.
+     *
+     * @return object XML_XPath pointer
+     * @access public
+     */
+    function current()
+    {
+        if (is_array($this->data)) {
+            return current($this->data);
+        }
+        
         return false;
     }
 

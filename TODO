@@ -19,21 +19,18 @@ XML_XPath Inteface TODO:
   
   [@]     make an example.php and example.out for people to read through (Cooker)
 
-  [@]     implement childNodes() to return an xml_xpath_result object
+  [@]     implement childNodes() to return an xml_xpath_result object,  Fix sorting in result
+          object for DOM queries
 
   [*]     make a short test harness just so I know I don't commit bad shit
   
   [*]     finally figured out substitute entities default, so see if we can make this
           usable in the class
 
-  [*]     implement getElementsByTagName and getElementById since there are domxml functions
-          now...return as getElementsByTagName as XML_XPath_result objects..getElementById
-          will be a move function
+  [@]     implement getElementsByTagName since there are domxml functions
+          now...return as getElementsByTagName as XML_XPath_result objects
 
-  [*]     considering doing substringData for attribute nodes...just seems to make sense
-
-  [*]     in _quick_evaluate_init, make sure the pointer is not null, could happen coming
-          off of a results object
+  [@]     always check that pointer is not NULL
 
   [@]     functions for result object are now
           next()
@@ -48,7 +45,19 @@ XML_XPath Inteface TODO:
           it moves from off the stage to on the stage the first time, then it moves to the next
           node after that
 
-  [@]     relative xpath queries
+  [@]     relative xpath queries in evaluate
 
   [*]     fix this stdClass hack we have to do to get the result object to work with non xpath
           queries (in cases of using dom queries)
+
+  [*]     waiting on stripping of formatting on the way in
+
+  [*]     insert_before() now copies node before inserting, does this affect us?
+
+  [@]     when using getAttribute with the move = true, we should sit on the attribute node, not the parent element
+
+  [@]     manually do the xpath_eval in the quick xpath query function, much faster
+
+  [@]     elimiate _quick_evaluate_shutdown? to slow in critical areas
+
+  [*]     figure out a way to implement the create functions

@@ -216,7 +216,7 @@ class XML_XPath_common {
             }
             $nodeset[] = $childNode;
         }
-        return new XML_XPath_result($nodeset, XPATH_NODESET, array($this->pointer, '/*'), $this->ctx);
+        return new XML_XPath_result($nodeset, XPATH_NODESET, array($this->pointer, '/*'), $this->ctx, $this->xml);
     }
 
     // }}}
@@ -236,7 +236,7 @@ class XML_XPath_common {
     {
         // since we can't do an actual xpath query, we need to create a pseudo xpath result
         $nodeset = $this->xml->get_elements_by_tagname($in_tagName);
-        return new XML_XPath_result($nodeset, XPATH_NODESET, array(null, '//' . $in_tagName), $this->ctx);
+        return new XML_XPath_result($nodeset, XPATH_NODESET, array(null, '//' . $in_tagName), $this->ctx, $this->xml);
     }
 
     // }}}
@@ -1286,7 +1286,12 @@ class XML_XPath_common {
                 $occur++;
     
                 if ($type == XML_ELEMENT_NODE) {
-                    $name = $name;
+                    // this is a hack and only works for some cases
+                    // we can have to nodes with the same name but different namespace,
+                    // so this should actually go above
+                    if (($prefix = $cur->prefix()) != '') { 
+                        $name = $prefix . ':' . $name;
+                    }
                 }
                 // fix the names for those nodes where xpath query and dom node name don't match
                 elseif ($type == XML_COMMENT_NODE) {
@@ -1305,6 +1310,7 @@ class XML_XPath_common {
                     $occur = 0;
                 }
             }
+
             if ($occur == 0) {
                 $buffer = $sep . $name . $buffer;
             }
@@ -1317,6 +1323,88 @@ class XML_XPath_common {
         } while ($cur != false);
     
         return $buffer;
+    }
+
+    // }}}
+    // {{{ mixed   getOne()
+
+    /**
+     * A quick version of the evaluate, where the results are returned immediately. This
+     * function is equivalent to xsl:value-of select in every way.
+     *
+     * @param  string  $in_xpathQuery (optional) quick xpath query
+     * @param  boolean $in_movePointer (optional) move internal pointer
+     *
+     * @access public
+     * @return mixed number of nodes or value of scalar result {or XML_XPath_Error exception}
+     */
+    function getOne($in_xpathQuery, $in_movePointer = false)
+    {
+        // Execute the xpath query and return the results, then reset the result index
+        if (XML_XPath::isError($result = $this->evaluate($in_xpathQuery, $in_movePointer))) {
+            return $result;
+        }
+
+        return $result->getData();
+    }
+  
+    // }}}
+    // {{{ void    evaluate()
+
+    /**
+     * Evaluate the xpath expression on the loaded xml document.  An XML_XPath_Result object is
+     * returned which can be used to manipulate the results
+     *
+     * @param  string  $in_xpathQuery xpath query
+     * @param  boolean $in_movePointer (optional) move internal pointer
+     *
+     * @access public
+     * @return object result object {or XML_XPath_Error exception}
+     */
+    function &evaluate($in_xpathQuery, $in_movePointer = false) 
+    {
+        // Make sure we have loaded an xml document and were able to create an xpath context
+        if (get_class($this->ctx) != 'XPathContext') {
+            return PEAR::raiseError(null, XML_XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XML_XPath_Error', true);
+        }
+
+        // enable relative xpath queries (I don't check a valid dom object yet)
+        settype($in_xpathQuery, 'array');
+        if (isset($in_xpathQuery[1])) {
+            $sep = '/';
+            // those double slashes cause an anomally
+            if (substr($in_xpathQuery[1], 0, 2) == '//') {
+                $sep = '';
+            }
+            
+            if ($in_xpathQuery[0] == 'current()' || $in_xpathQuery[0] == '.') {
+                $in_xpathQuery[0] = $this->getNodePath($this->pointer);
+            }
+            else {
+                $in_xpathQuery[0] = $this->getNodePath($in_xpathQuery[0]);
+            }
+
+            $xpathQuery = $in_xpathQuery[0] . $sep . $in_xpathQuery[1];
+        }
+        else {
+            $xpathQuery = reset($in_xpathQuery);
+        }
+
+        // we don't care if this messes up, we will let the result object handle no results
+        $result = @xpath_eval($this->ctx, $xpathQuery);
+
+        // if we are moving the pointer, return boolean success just like the step functions
+        if ($in_movePointer) {
+            if ($result->type == XPATH_NODESET && !empty($result->nodeset)) {
+                $this->pointer = reset($result->nodeset);
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+
+        return new XML_XPath_result($result->type == XPATH_NODESET ? $result->nodeset : $result->value, $result->type, $xpathQuery, $this->ctx, $this->xml);
     }
 
     // }}}
@@ -1461,18 +1549,18 @@ class XML_XPath_common {
                 if (isset($in_xpathQuery[1])) {
                     $sep = '/';
                     // those double slashes cause an anomally
-                    if (substr($in_xpathQuery[0], 0, 2) == '//') {
+                    if (substr($in_xpathQuery[1], 0, 2) == '//') {
                         $sep = '';
                     }
                     
-                    if ($in_xpathQuery[1] == 'current()') {
-                        $in_xpathQuery[1] = $this->getNodePath($this->pointer);
+                    if ($in_xpathQuery[0] == 'current()' || $in_xpathQuery[0] == '.') {
+                        $in_xpathQuery[0] = $this->getNodePath($this->pointer);
                     }
                     else {
-                        $in_xpathQuery[1] = $this->getNodePath($in_xpathQuery[1]);
+                        $in_xpathQuery[0] = $this->getNodePath($in_xpathQuery[0]);
                     }
 
-                    $xpathQuery = $in_xpathQuery[1] . $sep . $in_xpathQuery[0];
+                    $xpathQuery = $in_xpathQuery[0] . $sep . $in_xpathQuery[1];
                 }
                 else {
                     $xpathQuery = reset($in_xpathQuery);

@@ -140,7 +140,7 @@ class XML_XPath extends XML_XPath_common {
         // not a valid xml instance, so throw error
         else {
             ob_end_clean();
-            return PEAR::raiseError(null, XML_XPATH_INVALID_DOCUMENT, null, E_USER_ERROR, "The xml data '$in_xml' could not be parsed to xml dom", 'XML_XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_INVALID_DOCUMENT, null, E_USER_ERROR, "The xml $in_type '$in_xml' could not be parsed to xml dom", 'XML_XPath_Error', true);
         }
         $loadError = ob_get_contents();
         ob_end_clean();
@@ -158,80 +158,25 @@ class XML_XPath extends XML_XPath_common {
     }
  
     // }}}
-    // {{{ mixed   getOne()
+    // {{{ void    registerNamespace()
 
     /**
-     * A quick version of the evaluate, where the results are returned immediately. This
-     * function is equivalent to xsl:value-of select in every way.
+     * This function is sort of temporary hack for registering namespace prefixes
      *
-     * @param  string  $in_xpathQuery (optional) quick xpath query
-     * @param  boolean $in_movePointer (optional) move internal pointer
+     * The domxml functions should do this automatically when a domxml object is read in.
+     * For now, you can use this function.
      *
+     * @param  array $in_namespaces
+     *
+     * @return void
      * @access public
-     * @return mixed number of nodes or value of scalar result {or XML_XPath_Error exception}
      */
-    function getOne($in_xpathQuery, $in_movePointer = false)
+    function registerNamespace($in_namespaces)
     {
-        // Execute the xpath query and return the results, then reset the result index
-        if (XML_XPath::isError($result = $this->evaluate($in_xpathQuery, $in_movePointer))) {
-            return $result;
+        settype($in_namespaces, 'array');
+        foreach($in_namespaces as $localName => $namespace) {
+            $this->ctx->xpath_register_ns($localName, $namespace);
         }
-        return $result->getData();
-    }
-  
-    // }}}
-    // {{{ void    evaluate()
-
-    /**
-     * Evaluate the xpath expression on the loaded xml document.  An XML_XPath_Result object is
-     * returned which can be used to manipulate the results
-     *
-     * @param  string  $in_xpathQuery xpath query
-     * @param  boolean $in_movePointer (optional) move internal pointer
-     *
-     * @access public
-     * @return object result object {or XML_XPath_Error exception}
-     */
-    function &evaluate($in_xpathQuery, $in_movePointer = false) 
-    {
-        // Make sure we have loaded an xml document and were able to create an xpath context
-        if (get_class($this->ctx) != 'XPathContext') {
-            return PEAR::raiseError(null, XML_XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XML_XPath_Error', true);
-        }
-
-        // enable relative xpath queries (I don't check a valid dom object yet)
-        settype($in_xpathQuery, 'array');
-        if (isset($in_xpathQuery[1])) {
-            $sep = '/';
-            // those double slashes cause an anomally
-            if (substr($in_xpathQuery[0], 0, 2) == '//') {
-                $sep = '';
-            }
-            
-            if ($in_xpathQuery[1] == 'current()') {
-                $in_xpathQuery[1] = $this->getNodePath($this->pointer);
-            }
-            else {
-                $in_xpathQuery[1] = $this->getNodePath($in_xpathQuery[1]);
-            }
-
-            $xpathQuery = $in_xpathQuery[1] . $sep . $in_xpathQuery[0];
-        }
-        else {
-            $xpathQuery = reset($in_xpathQuery);
-        }
-
-        if (!$result = @xpath_eval($this->ctx, $xpathQuery)) {
-            return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_WARNING, "XML_XPath query: $xpathQuery", 'XML_XPath_Error', true);
-        }
-
-        $resultObj =& new XML_XPath_result($result->type == XPATH_NODESET ? $result->nodeset : $result->value, $result->type, $xpathQuery, $this->ctx);
-
-        if ($in_movePointer && $result->type == XPATH_NODESET && !empty($result->nodeset)) {
-            $this->pointer = reset($result->nodeset);
-        }
-
-        return $resultObj;
     }
 
     // }}}
