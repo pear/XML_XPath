@@ -252,6 +252,45 @@ class XML_XPath_common {
     }
 
     // }}}
+    // {{{ object  childNodes()
+
+    /**
+     * Retrieves the child nodes from the element node as an XML_XPath_result object
+     *
+     * Similar to an xpath query, this function will grab all the first descendant child
+     * nodes of the element node at the current position and will create an XML_XPath_result
+     * object of type nodeset with each of the child nodes as the nodes.
+     *
+     * @param string  $in_xpathQuery (optional) quick xpath query
+     * @param boolean $in_movePointer (optional) move the internal pointer with quick xpath query
+     *
+     * @access public
+     * @return object XML_XPath_result object of type nodeset
+     * [!] important note: since we had to hack the result object a bit, you cannot sort the
+     * result object when generated in this manner right now [!]
+     */
+    function &childNodes($in_xpathQuery = null, $in_movePointer = false)
+    {
+        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer, array(XML_ELEMENT_NODE)))) {
+            return $result;
+        }
+
+        // since we can't do an actual xpath query, we need to create a pseudo xpath result
+        $xpathObj = new StdClass();
+        $xpathObj->type = XPATH_NODESET;
+        foreach($this->pointer->child_nodes() as $childNode) {
+            // if this is a blank node and we are skipping blank nodes...skip to next child
+            if ($childNode->is_blank_node() && $this->skipBlanks) {
+                continue;
+            }
+            $xpathObj->nodeset[] = $childNode;
+        }
+        $resultObj =& new XML_XPath_result($xpathObj, null, $this->xml, $this->ctx);
+        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+        return $resultObj;
+    }
+
+    // }}}
     // {{{ boolean childNode()
 
     /**
