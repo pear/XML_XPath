@@ -9,13 +9,17 @@ XML_XPath Inteface TODO:
  Status   Description
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
   
-  [*]     A more formal and informative interface to the load() function
+  [@]     implement siblingNode and childNode to get a tag by name
 
+  [@]     sort for results
+
+  [@]     A more formal and informative interface to the load() function, used 'file/string/object'
+
+  [@]     prevent duplicate root in appendChild()
+  
   [*]     make an example.php and example.out for people to read through
 
   [*]     make a short test harness just so I know I don't commit bad shit
-  
-  [@]     prevent duplicate root in appendChild()
   
   [*]     finally figured out substitute entities default, so see if we can make this
           usable in the class
@@ -24,5 +28,3 @@ XML_XPath Inteface TODO:
           now
 
   [*]     considering doing substringData for attribute nodes...just seems to make sense
-
-  [@]     sort for results

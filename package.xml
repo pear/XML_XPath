@@ -23,13 +23,13 @@
       </maintainer>
     </maintainers>
     <deps>
-      <dep type="php" rel="ge" version="4.2.0" />
+      <dep type="php" rel="ge" version="4.2.1" />
     </deps>
     <release>
       <license>PHP 2.01</license>
       <state>beta</state>
-      <version>1.1</version>
-      <date>2002-03-10</date>
+      <version>1.0</version>
+      <date>2002-05-23</date>
       <notes>
          This is the initial independent PEAR release.
       </notes>

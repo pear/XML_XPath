@@ -27,30 +27,30 @@
 // }}}
 // {{{ constants
 
-define('XPATH_SORT_TEXT_ASCENDING',     1);
-define('XPATH_SORT_NUMBER_ASCENDING',   2);
-define('XPATH_SORT_NATURAL_ASCENDING',  3);
-define('XPATH_SORT_TEXT_DESCENDING',    4);
-define('XPATH_SORT_NUMBER_DESCENDING',  5);
-define('XPATH_SORT_NATURAL_DESCENDING', 6);
+define('XML_XPATH_SORT_TEXT_ASCENDING',     1);
+define('XML_XPATH_SORT_NUMBER_ASCENDING',   2);
+define('XML_XPATH_SORT_NATURAL_ASCENDING',  3);
+define('XML_XPATH_SORT_TEXT_DESCENDING',    4);
+define('XML_XPATH_SORT_NUMBER_DESCENDING',  5);
+define('XML_XPATH_SORT_NATURAL_DESCENDING', 6);
 
 // }}}
 
-// {{{ class XPath_result
+// {{{ class XML_XPath_result
 
 /**
- * Interface for an XPath result so that one can cycle through the result set and manipulate
+ * Interface for an XML_XPath result so that one can cycle through the result set and manipulate
  * the main tree with DOM methods using a seperate pointer then the original class.
  *
- * @version  Revision: 1.1
+ * @version  Revision: 1.0
  * @author   Dan Allen <dan@mojavelinux.com>
  * @access   public
- * @since    PHP 4.2
+ * @since    PHP 4.2.1
  * @package  XML_XPath
  */
 
 // }}}
-class XPath_result extends XPath_common {
+class XML_XPath_result extends XML_XPath_common {
     // {{{ properties
 
     /** @var object reference to result object */
@@ -77,12 +77,12 @@ class XPath_result extends XPath_common {
     // }}}
     // {{{ constructor
 
-    function XPath_result($in_result, $in_query, &$in_xml, &$in_ctx) 
+    function XML_XPath_result($in_result, $in_query, &$in_xml, &$in_ctx) 
     {
         $this->result = &$in_result; 
         $this->query = $in_query;
         $this->type = $this->result->type;
-        $this->data = $this->result->nodeset ? $this->result->nodeset : $this->result->value;
+        $this->data = isset($this->result->nodeset) ? $this->result->nodeset : $this->result->value;
         $this->index = 0;
         $this->xml = &$in_xml;
         $this->ctx = &$in_ctx;
@@ -195,12 +195,12 @@ class XPath_result extends XPath_common {
      * @param mixed  $in_index either an integer index or the string 'first' or 'last'
      *
      * @access public
-     * @return void {or XPath_Error exception}
+     * @return void {or XML_XPath_Error exception}
      */
     function setNodeIndex($in_index) 
     {
         if (!$this->type == XPATH_NODESET) {
-            return PEAR::raiseError(null, XPATH_INVALID_NODESET, null, E_USER_NOTICE, "Cannot assign index $in_index to non-nodeset result in query {$this->query}", 'XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_INVALID_NODESET, null, E_USER_NOTICE, "Cannot assign index $in_index to non-nodeset result in query {$this->query}", 'XML_XPath_Error', true);
         }
         if ($in_index == 'last') {
             $this->index = sizeOf($this->data);
@@ -210,13 +210,13 @@ class XPath_result extends XPath_common {
         }
         elseif (is_int($in_index)) {
             if ($in_index > sizeOf($this->data)) {
-                return PEAR::raiseError(null, XPATH_INVALID_INDEX, null, E_USER_NOTICE, "Invalid index $in_index in query {$this->query}", 'XPath_Error', true);
+                return PEAR::raiseError(null, XML_XPATH_INVALID_INDEX, null, E_USER_NOTICE, "Invalid index $in_index in query {$this->query}", 'XML_XPath_Error', true);
             }
             elseif ($in_index > 0) {
                 $this->index = $in_index; 
             }
             else {
-                return PEAR::raiseError(null, XPATH_INVALID_INDEX, null, E_USER_NOTICE, "Negative index $in_index is invalid", 'XPath_Error', true);
+                return PEAR::raiseError(null, XML_XPATH_INVALID_INDEX, null, E_USER_NOTICE, "Negative index $in_index is invalid", 'XML_XPath_Error', true);
             }
         }
         $this->pointer = $this->data[$this->index];
@@ -235,24 +235,24 @@ class XPath_result extends XPath_common {
      * ascending order.
      *
      * @param  string $in_sortXpath relative xpath query location to each node in nodeset
-     * @param  int $in_order either XPATH_SORT_TEXT_[DE|A]SCENDING, 
-     *                              XPATH_SORT_NUMBER_[DE|A]SCENDING,
-     *                              XPATH_SORT_NATURAL_[DE|A]SCENDING
+     * @param  int $in_order either XML_XPATH_SORT_TEXT_[DE|A]SCENDING, 
+     *                              XML_XPATH_SORT_NUMBER_[DE|A]SCENDING,
+     *                              XML_XPATH_SORT_NATURAL_[DE|A]SCENDING
      *
      * @access public
-     * @return void {or XPath_Error exception}
+     * @return void {or XML_XPath_Error exception}
      */
-    function sort($in_sortXpath = '.', $in_order = XPATH_SORT_TEXT_ASCENDING) 
+    function sort($in_sortXpath = '.', $in_order = XML_XPATH_SORT_TEXT_ASCENDING) 
     {
         if ($this->resultType() != XPATH_NODESET) {
-            return PEAR::raiseError(null, XPATH_INVALID_NODESET, null, E_USER_NOTICE, $this->data, 'XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_INVALID_NODESET, null, E_USER_NOTICE, $this->data, 'XPath_Error', true);
         }
         if ($in_sortXpath == '') {
             $in_sortXpath = '.';
         }
         $xpathResult = @$this->ctx->xpath_eval($this->query . '/' . $in_sortXpath . '|' . $this->query);
         if (!$xpathResult || !$xpathResult->nodeset) {
-            return PEAR::raiseError(null, XPATH_INVALID_QUERY, null, E_USER_NOTICE, "Query {$this->query}/$in_sortXPath", 'XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_NOTICE, "Query {$this->query}/$in_sortXPath", 'XML_XPath_Error', true);
         }
         $data = array();
         $this->index = 0;
@@ -263,41 +263,52 @@ class XPath_result extends XPath_common {
         }
         else {
             foreach ($xpathResult->nodeset as $index => $node) {
-                if ($node != $this->data[$this->index]) {
+                if (!isset($this->data[$this->index]) || $node != $this->data[$this->index]) {
                     continue;
                 }
-                if ($xpathResult->nodeset[$index + 1] == $this->data[$this->index]) {
-                    array_push($data, '');
+
+                if (isset($xpathResult->nodeset[$index + 1])) {
+                    if ($xpathResult->nodeset[$index + 1] == $this->data[$this->index]) {
+                        array_push($data, '');
+                    }
+                    else {
+                        array_push($data, $xpathResult->nodeset[$index + 1]->get_content());
+                    }
                 }
-                elseif(isset($xpathResult->nodeset[$index + 1])) {
-                    array_push($data, $xpathResult->nodeset[$index + 1]->get_content());
-                }
+
                 $this->index++;
             }
         }
+
         switch ($in_order) {
-            case XPATH_SORT_TEXT_ASCENDING:
+            case XML_XPATH_SORT_TEXT_ASCENDING:
                 asort($data, SORT_STRING);
-                break;
-            case XPATH_SORT_NUMBER_ASCENDING:
+            break;
+
+            case XML_XPATH_SORT_NUMBER_ASCENDING:
                 asort($data, SORT_NUMERIC);
-                break;
-            case XPATH_SORT_NATURAL_ASCENDING:
+            break;
+
+            case XML_XPATH_SORT_NATURAL_ASCENDING:
                 natsort($data);
-                break;
-            case XPATH_SORT_TEXT_DESCENDING:
+            break;
+
+            case XML_XPATH_SORT_TEXT_DESCENDING:
                 arsort($data, SORT_STRING);
-                break;
-            case XPATH_SORT_NUMBER_DESCENDING:
+            break;
+
+            case XML_XPATH_SORT_NUMBER_DESCENDING:
                 arsort($data, SORT_NUMERIC);
-                break;
-            case XPATH_SORT_NATURAL_DESCENDING:
+            break;
+
+            case XML_XPATH_SORT_NATURAL_DESCENDING:
                 natsort($data);
                 $data = array_reverse($data, TRUE);
-                break;
+            break;
+
             default:
                 asort($data);
-                break;
+            break;
         }
         $dataReordered = array();
         $this->index = 0;

@@ -4,7 +4,7 @@
 // +----------------------------------------------------------------------+
 // | PHP version 4.0                                                      |
 // +----------------------------------------------------------------------+
-// | Copyright (c) 1997-2001 The PHP Group                                |
+// | Copyright (c) 1997-2002 The PHP Group                                |
 // +----------------------------------------------------------------------+
 // | This source file is subject to version 2.0 of the PHP license,       |
 // | that is bundled with this package in the file LICENSE, and is        |
@@ -28,52 +28,52 @@
 // {{{ error codes
 
 /*
- * Error codes for the XPath interface, which will be mapped to textual messages
- * in the XPath::errorMessage() function.  If you are to add a new error code, be
- * sure to add the textual messages to the XPath::errorMessage() function as well
+ * Error codes for the XML_XPath interface, which will be mapped to textual messages
+ * in the XML_XPath::errorMessage() function.  If you are to add a new error code, be
+ * sure to add the textual messages to the XML_XPath::errorMessage() function as well
  */
 
-define("XPATH_OK",                      1);
-define("XPATH_ERROR",                  -1);
-define("XPATH_ALREADY_EXISTS",         -2);
-define("XPATH_INVALID_DOCUMENT",       -3);
-define("XPATH_INVALID_QUERY",          -4);
-define("XPATH_NO_DOM",                 -5);
-define("XPATH_INVALID_INDEX",          -6);
-define("XPATH_INVALID_NODESET",        -7);
-define("XPATH_NOT_LOADED",             -8);
-define("XPATH_INVALID_NODETYPE",       -9);
-define("XPATH_FILE_NOT_WRITABLE",     -10);
-define("XPATH_NODE_REQUIRED",         -11);
-define("XPATH_INDEX_SIZE",            -12);
-define("XML_PARSE_ERROR",             -13);
-define("XML_DUPLICATE_ROOT",          -14);
+define('XML_XPATH_OK',                      1);
+define('XML_XPATH_ERROR',                  -1);
+define('XML_XPATH_ALREADY_EXISTS',         -2);
+define('XML_XPATH_INVALID_DOCUMENT',       -3);
+define('XML_XPATH_INVALID_QUERY',          -4);
+define('XML_XPATH_NO_DOM',                 -5);
+define('XML_XPATH_INVALID_INDEX',          -6);
+define('XML_XPATH_INVALID_NODESET',        -7);
+define('XML_XPATH_NOT_LOADED',             -8);
+define('XML_XPATH_INVALID_NODETYPE',       -9);
+define('XML_XPATH_FILE_NOT_WRITABLE',     -10);
+define('XML_XPATH_NODE_REQUIRED',         -11);
+define('XML_XPATH_INDEX_SIZE',            -12);
+define('XML_PARSE_ERROR',                 -13);
+define('XML_DUPLICATE_ROOT',              -14);
 
 // }}}
 // {{{ includes
 
-require_once "PEAR.php";
-require_once "XPath/common.php";
-require_once "XPath/result.php";
-require_once "XPath/error.php";
+require_once 'PEAR.php';
+require_once 'XPath/common.php';
+require_once 'XPath/result.php';
+require_once 'XPath/error.php';
 
 // }}}
 
-// {{{ class XPath
+// {{{ class XML_XPath
 
 /**
- * The main "XPath" class is simply a container class with some methods for
+ * The main "XML_XPath" class is simply a container class with some methods for
  * creating DOM xml objects and preparing error codes
  *
- * @version  Revision: 1.1
+ * @version  Revision: 1.0
  * @author   Dan Allen <dan@mojavelinux.com>
  * @access   public
- * @since    PHP 4.2
+ * @since    PHP 4.2.1
  * @package  XML_XPath
  */
 
 // }}}
-class XPath extends XPath_common {
+class XML_XPath extends XML_XPath_common {
     // {{{ properties
 
     /** @var object xml data object */
@@ -91,12 +91,12 @@ class XPath extends XPath_common {
     // }}}
     // {{{ constructor
 
-    function Xpath($in_xml = null) 
+    function XML_Xpath($in_xml = null, $in_type = 'string') 
     {
         // load the xml document if passed in here
         // if not defined, require load() to be called
         if (!is_null($in_xml)) {
-            if(XPath::isError($result = $this->load($in_xml))) {
+            if (XML_XPath::isError($result = $this->load($in_xml, $in_type))) {
                 $this = $result;
             }
         }
@@ -114,40 +114,40 @@ class XPath extends XPath_common {
      * @param  mixed   $in_xml xml document, in one of 3 forms (object, string or file)
      *
      * @access public
-     * @return void {or XPath_Error exception}
+     * @return void {or XML_XPath_Error exception}
      */
-    function load($in_xml) 
+    function load($in_xml, $in_type = 'string') 
     {
         // if we already have a document loaded, then throw a warning
         if ($this->loaded) {
-            return PEAR::raiseError(null, XPATH_ALREADY_EXISTS, null, E_USER_WARNING, $this->xml->root(), 'XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_ALREADY_EXISTS, null, E_USER_WARNING, $this->xml->root(), 'XML_XPath_Error', true);
         }
         // in this case, we already have an xmldom object
-        if (is_class_type($in_xml, 'domdocument')) {
+        if ($in_type == 'object' && get_class($in_xml) == 'DomDocument') {
             $this->xml = $in_xml;
         }
         // we can read the file, so use xmldocfile to make a xmldom object
-        elseif(file_exists($in_xml) && is_readable($in_xml)) {
-            $this->xml = @xmldocfile($in_xml);
+        elseif ($in_type == 'file' && @file_exists($in_xml)) {
+            $this->xml = @domxml_open_file($in_xml);
         }
         // this is a string, so attempt to make an xmldom object from string
-        elseif(is_string($in_xml)) {
-            $this->xml = @xmldoc($in_xml);
+        elseif($in_type == 'string' && is_string($in_xml)) {
+            $this->xml = @domxml_open_mem($in_xml);
         }
         // not a valid xml instance, so throw error
         else {
-            return PEAR::raiseError(null, XPATH_INVALID_DOCUMENT, null, E_USER_ERROR, "The xml data '$in_xml' could not be parsed to xml dom", 'XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_INVALID_DOCUMENT, null, E_USER_ERROR, "The xml data '$in_xml' could not be parsed to xml dom", 'XML_XPath_Error', true);
         }
-        // make sure a xmldom object was created, and if so initialized the state
-        if (is_class_type($this->xml, 'domdocument')) {
+        // make sure a domxml object was created, and if so initialized the state
+        if (get_class($this->xml) == 'DomDocument') {
             $this->loaded = true;
             $this->ctx = $this->xml->xpath_new_context();    
             $this->pointer = $this->xml->root();
             return true;
         }
-        // we could not make a xmldom object, so throw an error
+        // we could not make a domxml object, so throw an error
         else {
-            return PEAR::raiseError(null, XPATH_NO_DOM, null, E_USER_ERROR, "A DomDocument could not be instantiated from '$in_xml'", 'XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_NO_DOM, null, E_USER_ERROR, "A DomDocument could not be instantiated from '$in_xml'", 'XML_XPath_Error', true);
         }
     }
  
@@ -162,12 +162,12 @@ class XPath extends XPath_common {
      * @param  boolean $in_movePointer (optional) move internal pointer
      *
      * @access public
-     * @return mixed number of nodes or value of scalar result {or XPath_Error exception}
+     * @return mixed number of nodes or value of scalar result {or XML_XPath_Error exception}
      */
     function getOne($in_xpathQuery, $in_movePointer = false)
     {
         // Execute the xpath query and return the results, then reset the result index
-        if (XPath::isError($result = $this->evaluate($in_xpathQuery, $in_movePointer))) {
+        if (XML_XPath::isError($result = $this->evaluate($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
         return $result->getData();
@@ -177,25 +177,25 @@ class XPath extends XPath_common {
     // {{{ void    evaluate()
 
     /**
-     * Evaluate the xpath expression on the loaded xml document.  An XPath_Result object is
+     * Evaluate the xpath expression on the loaded xml document.  An XML_XPath_Result object is
      * returned which can be used to manipulate the results
      *
      * @param  string  $in_xpathQuery xpath query
      * @param  boolean $in_movePointer (optional) move internal pointer
      *
      * @access public
-     * @return void {or XPath_Error exception}
+     * @return object result object {or XML_XPath_Error exception}
      */
     function evaluate($in_xpathQuery, $in_movePointer = false) 
     {
         // Make sure we have loaded an xml document and were able to create an xpath context
-        if (!is_class_type($this->ctx, 'xpathcontext')) {
-            return PEAR::raiseError(null, XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XPath_Error', true);
+        if (!is_a_php_class($this->ctx, 'xpathcontext')) {
+            return PEAR::raiseError(null, XML_XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XML_XPath_Error', true);
         }
         if (!$result = @xpath_eval($this->ctx, $in_xpathQuery)) {
-            return PEAR::raiseError(null, XPATH_INVALID_QUERY, null, E_USER_WARNING, "XPath query: $in_xpathQuery", 'XPath_Error', true);
+            return PEAR::raiseError(null, XML_XPATH_INVALID_QUERY, null, E_USER_WARNING, "XML_XPath query: $in_xpathQuery", 'XML_XPath_Error', true);
         }
-        $resultObj = new XPath_result($result, $in_xpathQuery, $this->xml, $this->ctx);
+        $resultObj = new XML_XPath_result($result, $in_xpathQuery, $this->xml, $this->ctx);
 
         if ($in_movePointer && $resultObj->resultType() == XPATH_NODESET && $resultObj->numResults()) {
             $this->setPointer($resultObj->getPointer());
@@ -207,7 +207,7 @@ class XPath extends XPath_common {
     // {{{ boolean isError()
 
     /**
-     * Tell whether a result code from a XPath method is an error.
+     * Tell whether a result code from a XML_XPath method is an error.
      *
      * @param  object  $in_value object in question
      *
@@ -216,14 +216,14 @@ class XPath extends XPath_common {
      */
     function isError($in_value)
     {
-        return is_class_type($in_value, 'xpath_error');
+        return is_a($in_value, 'xml_xpath_error');
     }
 
     // }}}
     // {{{ mixed   errorMessage()
 
     /**
-     * Return a textual error message for an XPath error code.
+     * Return a textual error message for an XML_XPath error code.
      *
      * @param  int $in_value error code
      *
@@ -238,31 +238,31 @@ class XPath extends XPath_common {
         // define the varies error messages
         if (!isset($errorMessages)) {
             $errorMessages = array(
-                XPATH_OK                    => 'no error',
-                XPATH_ERROR                 => 'unknown error',
-                XPATH_ALREADY_EXISTS        => 'xml document already loaded',
-                XPATH_INVALID_DOCUMENT      => 'invalid xml document',
-                XPATH_INVALID_QUERY         => 'invalid xpath query',
-                XPATH_NO_DOM                => 'DomDocument could not be instantiated',
-                XPATH_INVALID_INDEX         => 'invalid index',
-                XPATH_INVALID_NODESET       => 'requires nodeset and one of appropriate type',
-                XPATH_NOT_LOADED            => 'DomDocument has not been loaded',
-                XPATH_INVALID_NODETYPE      => 'invalid nodetype for requested feature',
-                XPATH_FILE_NOT_WRITABLE     => 'file could not be written',
-                XPATH_NODE_REQUIRED         => 'DomNode required for operation',
-                XPATH_INDEX_SIZE            => 'index given out of range',
+                XML_XPATH_OK                    => 'no error',
+                XML_XPATH_ERROR                 => 'unknown error',
+                XML_XPATH_ALREADY_EXISTS        => 'xml document already loaded',
+                XML_XPATH_INVALID_DOCUMENT      => 'invalid xml document',
+                XML_XPATH_INVALID_QUERY         => 'invalid xpath query',
+                XML_XPATH_NO_DOM                => 'DomDocument could not be instantiated',
+                XML_XPATH_INVALID_INDEX         => 'invalid index',
+                XML_XPATH_INVALID_NODESET       => 'requires nodeset and one of appropriate type',
+                XML_XPATH_NOT_LOADED            => 'DomDocument has not been loaded',
+                XML_XPATH_INVALID_NODETYPE      => 'invalid nodetype for requested feature',
+                XML_XPATH_FILE_NOT_WRITABLE     => 'file could not be written',
+                XML_XPATH_NODE_REQUIRED         => 'DomNode required for operation',
+                XML_XPATH_INDEX_SIZE            => 'index given out of range',
                 XML_PARSE_ERROR             => 'parse error in xml string',
                 XML_DUPLICATE_ROOT          => 'root element already exists'
             );  
         }
 
         // If this is an error object, then grab the corresponding error code
-        if (XPath::isError($in_value)) {
+        if (XML_XPath::isError($in_value)) {
             $in_value = $in_value->getCode();
         }
         
         // return the textual error message corresponding to the code
-        return isset($errorMessages[$in_value]) ? $errorMessages[$in_value] : $errorMessages[XPATH_ERROR];
+        return isset($errorMessages[$in_value]) ? $errorMessages[$in_value] : $errorMessages[XML_XPATH_ERROR];
     }
 
     // }}}
