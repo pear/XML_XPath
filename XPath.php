@@ -53,9 +53,9 @@ define('XML_DUPLICATE_ROOT',              -14);
 // {{{ includes
 
 require_once 'PEAR.php';
-require_once 'XPath/common.php';
-require_once 'XPath/result.php';
-require_once 'XPath/error.php';
+require_once dirname(__FILE__) . '/XPath/common.php';
+require_once dirname(__FILE__) . '/XPath/result.php';
+require_once dirname(__FILE__) . '/XPath/error.php';
 
 // }}}
 
