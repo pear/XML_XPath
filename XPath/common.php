@@ -1427,7 +1427,7 @@ class XML_XPath_common {
     function &evaluate($in_xpathQuery, $in_movePointer = false) 
     {
         // Make sure we have loaded an xml document and were able to create an xpath context
-        if (get_class($this->ctx) != 'XPathContext') {
+        if (get_class($this->ctx) != 'xpathcontext') {
             return PEAR::raiseError(null, XML_XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XML_XPath_Error', true);
         }
 
@@ -1621,7 +1621,7 @@ class XML_XPath_common {
                 // doing the following manually (without evaluate()) is critical for speed
                 
                 // Make sure we have an xpath context (mildly costly)
-                if (get_class($this->ctx) != 'XPathContext') {
+                if (get_class($this->ctx) != 'xpathcontext') {
                     return PEAR::raiseError(null, XML_XPATH_NOT_LOADED, null, E_USER_ERROR, null, 'XML_XPath_Error', true);
                 }
 
