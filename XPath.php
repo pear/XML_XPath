@@ -127,7 +127,7 @@ class XML_XPath extends XML_XPath_common {
         ob_start();
         // in this case, we already have an xmldom object
         // get_class returns a lowercase name
-        if ($in_type == 'object' && get_class($in_xml) == 'domdocument') {
+        if ($in_type == 'object' && strtolower(get_class($in_xml)) == 'domdocument') {
             $this->xml = $in_xml;
         }
         // we can read the file, so use xmldocfile to make a xmldom object
@@ -147,7 +147,7 @@ class XML_XPath extends XML_XPath_common {
         ob_end_clean();
         // make sure a domxml object was created, and if so initialized the state
         // get_class returns a lowercase name        
-        if (get_class($this->xml) == 'domdocument') {
+        if (strtolower(get_class($this->xml)) == 'domdocument') {
             $this->loaded = true;
             $this->ctx = $this->xml->xpath_new_context();    
             $this->pointer = $this->xml->root();
