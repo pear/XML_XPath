@@ -1,5 +1,5 @@
 <?php
-// {{{ licence
+// {{{ license
 
 // +----------------------------------------------------------------------+
 // | PHP version 4.0                                                      |
@@ -26,7 +26,13 @@
 // {{{ functions
 
 /**
- * function is_a() is only defined in php CVS, so I implemented its functionality for the time being
+ * is_a is only defined in php CVS, so I implemented its functionality for the time being
+ *
+ * @param  object  $class the class to check
+ * @param  string  $match class name you are looking for
+ *
+ * @access public
+ * @return boolean whether the class is of the class type or a descendent of the class
  */
 function is_class_type($class, $match) 
 {
@@ -74,10 +80,11 @@ function is_class_type($class, $match)
  *              an xpath query is executed and can be used to cycle through the
  *              result nodeset or data
  *
- * @package  XML/XPath
- * @version  1.1
+ * @version  Revision: 1.1
  * @author   Dan Allen <dan@mojavelinux.com>
+ * @access   public
  * @since    PHP 4.2
+ * @package  XML/XPath
  */
 
 // }}}
@@ -92,6 +99,9 @@ class XPath_common {
 
     /** @var boolean when stepping through nodes, should we skip empty text nodes */
     var $skipBlanks = true;
+
+    /** @var file path to xmllint for reformating **/
+    var $xmllint = "xmllint";
 
     // }}}
     // {{{ string  nodeName()
@@ -924,11 +934,12 @@ class XPath_common {
      *
      * @param string  $in_xpathQuery quick xpath query
      * @param boolean $in_movePointer move internal pointer
+     * @param boolean $in_format reformat using xmllint --format
      *
      * @access public
      * @return string xml string, starting at pointer
      */
-    function toString($in_xpathQuery = null, $in_movePointer = false) 
+    function toString($in_xpathQuery = null, $in_movePointer = false, $in_format = false) 
     {
         if (XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
@@ -939,6 +950,10 @@ class XPath_common {
         }
         else {
             $xmlString = $this->xml->dump_node($this->pointer);
+        }
+        if ($in_format) {
+            $xmlString = escapeshellarg($xmlString);
+            $xmlString = `echo $xmlString | {$this->xmllint} --format - 2>&1`;
         }
 
         $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);

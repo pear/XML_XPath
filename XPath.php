@@ -1,5 +1,5 @@
 <?php
-// {{{ licence
+// {{{ license
 
 // +----------------------------------------------------------------------+
 // | PHP version 4.0                                                      |
@@ -61,10 +61,11 @@ require_once "XPath/result.php";
  * The main "XPath" class is simply a container class with some methods for
  * creating DOM xml objects and preparing error codes
  *
- * @package  XML/XPath
- * @version  1.1
+ * @version  Revision: 1.1
  * @author   Dan Allen <dan@mojavelinux.com>
+ * @access   public
  * @since    PHP 4.2
+ * @package  XML/XPath
  */
 
 // }}}
@@ -91,7 +92,9 @@ class XPath extends XPath_common {
         // load the xml document if passed in here
         // if not defined, require load() to be called
         if (!is_null($in_xml)) {
-            $this->load($in_xml);
+            if(XPath::isError($result = $this->load($in_xml))) {
+                $this = $result;
+            }
         }
     }
 
@@ -134,7 +137,7 @@ class XPath extends XPath_common {
         // make sure a xmldom object was created, and if so initialized the state
         if (is_class_type($this->xml, 'domdocument')) {
             $this->loaded = true;
-            $this->ctx = xpath_new_context($this->xml);    
+            $this->ctx = $this->xml->xpath_new_context();    
             $this->pointer = $this->xml->root();
             return true;
         }
@@ -282,10 +285,11 @@ class XPath extends XPath_common {
 /**
  * Error class for the XPath interface, which just prepares some variables and spawns PEAR_Error
  *
- * @package  XML/XPath
- * @version  1.1
+ * @version  Revision: 1.1
  * @author   Dan Allen <dan@mojavelinux.com>
+ * @access   public
  * @since    PHP 4.2
+ * @package  XML/XPath
  */
 
 // }}}
