@@ -60,6 +60,8 @@ function is_a_php_class($class, $match)
  * append_sibling() added
  * insert_before() now copies node before inserting
  * domxml_parser() might be good for bringing in stuff
+ * when using getAttribute with the move = true, we should sit on the attribute node, not the parent element
+ * let's eliminate _quick_evaluate_shutdown since calling a function is slow and it just does a check and calls another function
  */
 // {{{ class XML_XPath_common
 
@@ -132,15 +134,13 @@ class XML_XPath_common {
      */
     function nodeName($in_xpathQuery = null, $in_movePointer = false) 
     {
-        if (!is_null($in_xpathQuery) && XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
+        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
             return $result;
         }
 
         $nodeName = $this->pointer->node_name();
 
-        if (!is_null($in_xpathQuery)) {
-            $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
-        }
+        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
 
         return $nodeName;
     }
@@ -196,62 +196,6 @@ class XML_XPath_common {
     }
 
     // }}}
-    // {{{ boolean siblingNode()
-
-    /**
-     * Get the sibling based on the tag name of the sibling.  An index can be 
-     * specified which will get the nth sibling with that name.  This function uses caching of
-     * the child array of the parent to speed up multiple uses of it, killing the cache when 
-     * the internal pointer of the parent changes (this can be forced). This is not a DOM 
-     * function, but convienent addition.
-     *
-     * @param  string  $in_name        tagname of the sibling node
-     * @param  int     $in_index       index of the sibling with this tagname (1 based)
-     * @param  boolean $in_movePointer either move the internal pointer or return pointer
-     * @param  boolean $in_clearCache  force clear the cache of the siblings 
-     *
-     * @access public
-     * @return boolean if the pointer could be moved, or pointer if $in_movePointer is false
-     */
-    function siblingNode($in_name, $in_index = 1, $in_movePointer = true, $in_clearCache = false)
-    {
-        static $nameList, $previousParent;
-        settype($in_index, 'int');
-        $index = $in_index > 0 ? $in_index - 1 : 0;
-        // if we have changed locations, then reset the child array
-        $parent = $this->pointer->parent_node();
-        if ($parent != $previousParent || $in_clearCache) {
-            $previousParent = $parent;
-            $nameList = array();
-        }
-        // if the child array is not set, make it now 
-        // (can be dangerous if DOM changes have occured)
-        if (empty($nameList)) {
-            $childNodes = $parent->child_nodes();
-            settype($children, 'array');
-            foreach ($childNodes as $childNode) {
-                if ($childNode->is_blank_node() && $this->skipBlanks) {
-                    continue;
-                }
-                $nameList[$childNode->node_name()][] = $childNode;
-            }
-        }
-        // either move the pointer or return it
-        if (isset($nameList[$in_name][$index])) {
-            if ($in_movePointer) {
-                $this->pointer = $nameList[$in_name][$index];
-                return true;
-            }
-            else {
-                return $nameList[$in_name][$index];
-            }
-        }
-        else {
-            return false;
-        }
-    }
-
-    // }}}
     // {{{ object  childNodes()
 
     /**
@@ -291,56 +235,16 @@ class XML_XPath_common {
     }
 
     // }}}
-    // {{{ boolean childNode()
+    // {{{ object  getElementsByTagName()
 
-    /**
-     * Get the direct descendant child based on the tag name of the child.  An index can be 
-     * specified which will get the nth child with that name.  This function uses caching of
-     * the child array to speed up multiple uses of it, killing the cache when the internal 
-     * pointer changes (this can be forced). This is not a DOM function, but convienent one.
-     *
-     * @param  string  $in_name        tagname of the child node
-     * @param  int     $in_index       index of the sibling with this tagname (1 based)
-     * @param  boolean $in_movePointer either move the internal pointer or return pointer
-     * @param  boolean $in_clearCache  force clear the cache of the children
-     *
-     * @access public
-     * @return boolean if the pointer could be moved, or pointer if $in_movePointer is false
-     */
-    function childNode($in_name, $in_index = 1, $in_movePointer = true, $in_clearCache = false)
+    function getElementsByTagName($in_tagName)
     {
-        static $nameList, $previousPointer;
-        settype($in_index, 'int');
-        $index = $in_index > 0 ? $in_index - 1 : 0;
-        // if we have changed locations, then reset the child array
-        if ($this->pointer != $previousPointer || $in_clearCache) {
-            $previousPointer = $this->pointer;
-            $nameList = array();
-        }
-        // if the child array is not set, make it now (can be dangerous)
-        if (empty($nameList)) {
-            $childNodes = $this->pointer->child_nodes();
-            settype($children, 'array');
-            foreach ($childNodes as $childNode) {
-                if ($childNode->is_blank_node() && $this->skipBlanks) {
-                    continue;
-                }
-                $nameList[$childNode->node_name()][] = $childNode;
-            }
-        }
-        // either move the pointer or return it
-        if (isset($nameList[$in_name][$index])) {
-            if ($in_movePointer) {
-                $this->pointer = $nameList[$in_name][$index];
-                return true;
-            }
-            else {
-                return $nameList[$in_name][$index];
-            }
-        }
-        else {
-            return false;
-        }
+        // since we can't do an actual xpath query, we need to create a pseudo xpath result
+        $xpathObj = new StdClass();
+        $xpathObj->type = XPATH_NODESET;
+        $xpathObj->nodeset = $this->xml->get_elements_by_tagname($in_tagName);
+        $resultObj =& new XML_XPath_result($xpathObj, null, $this->xml, $this->ctx);
+        return $resultObj;
     }
 
     // }}}
@@ -1182,6 +1086,94 @@ class XML_XPath_common {
         }
     }
     
+    // }}}
+    // {{{ string  getNodePath()
+
+    /**
+     * Resolve the xpath location of the current node
+     *
+     * @param  string $in_xpathQuery (optional)
+     * @param  boolean $in_movePointer (optional)
+     *
+     * @return string xpath location query
+     * @access public
+     * [?] maybe add caching [?]
+     */
+    function getNodePath($in_xpathQuery = null, $in_movePointer = false)
+    {
+        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
+            return $result;
+        }
+
+        $buffer = '';
+        $cur = $this->pointer;
+        do {
+            $name = '';
+            $sep = '/';
+            $occur = 0;
+            if (($type = $cur->node_type()) == XML_DOCUMENT_NODE) {
+                if ($buffer[0] == '/') {
+                    break;
+                }
+    
+                $next = NULL;
+            }
+            else if ($type == XML_ATTRIBUTE_NODE) {
+                $sep .= '@';
+                $name = $cur->node_name();
+                $next = $cur->parent_node();
+            }
+            else {
+                $name = $cur->node_name();
+                $next = $cur->parent_node();
+    
+                // now figure out the index
+                $tmp = $cur->previous_sibling();
+                while ($tmp != NULL) {
+                    if ($name == $tmp->node_name()) {
+                        $occur++; 
+                    }
+                    $tmp = $tmp->previous_sibling();
+                }
+    
+                $occur++;
+    
+                if ($type == XML_ELEMENT_NODE) {
+                    $name = $name;
+                }
+                // fix the names for those nodes where xpath query and dom node name don't match
+                elseif ($type == XML_COMMENT_NODE) {
+                    $name = 'comment()';
+                }
+                elseif ($type == XML_PI_NODE) {
+                    $name = 'processing-instruction()';
+                }
+                elseif ($type == XML_TEXT_NODE) {
+                    $name = 'text()';
+                }
+                // anything left here has not been coded yet (cdata is broken)
+                else {
+                    $name = '';
+                    $sep = '';
+                    $occur = 0;
+                }
+            }
+            if ($occur == 0) {
+                $buffer = $sep . $name . $buffer;
+            }
+            else {
+                $buffer = $sep . $name . '[' . $occur . ']' . $buffer;
+            }
+    
+            $cur = $next;
+    
+        } while ($cur != NULL);
+    
+        $this->_quick_evaluate_shutdown($in_xpathQuery, $in_movePointer);
+
+        return $buffer;
+    }
+
     // }}}
     // {{{ _build_fragment()
 
