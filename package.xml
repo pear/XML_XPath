@@ -66,14 +66,6 @@
   </release>
   <changelog>
     <release>
-      <version>1.0</version>
-      <date>2002-05-23</date>
-      <state>beta</state>
-      <notes>
-        This is the initial independent PEAR release.
-      </notes>
-    </release>
-    <release>
       <version>1.1</version>
       <date>2002-06-06</date>
       <state>beta</state>
@@ -91,23 +83,11 @@
       </notes>
     </release>
     <release>
-      <version>1.2</version>
-      <date>2002-06-07</date>
+      <version>1.0</version>
+      <date>2002-05-23</date>
       <state>beta</state>
       <notes>
-  * Very important to note that the DOM step functions do not take an optional xpath query.  The
-  reason I designed it this way is because the outcome would be too difficult to deal with, since
-  one of 4 different scenarios could take place.  Plus, it just doesn't make any sense. 
-  * Significant speed enhancements (almost 100% faster)
-  Major changes:
-  * getAttribute('foo', true) now puts you on the attribute, not the element node
-  * cleaned up the XML_XPath_result initialization (no longer create an StdClass when calling class)
-  * fixed sorting for childNodes() and getElementsByTagName() generated result objects
-  * cleaned up sorting in result object, and added comments (so I don't forget again how I did it)
-  * major speed enhancements (calling user defined functions methods is slow, so tried to trim that down)
-  * don't create a result object in the _quick_evaluate function since we don't need it anyway
-  * enabled relative xpath queries differently, in_xpathQuery = array(query, node) for relative...
-  * added relative xpath queries for the _quick_evaluate feature
+        This is the initial independent PEAR release.
       </notes>
     </release>
   </changelog>
