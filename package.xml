@@ -9,6 +9,10 @@
       methods on which the action is performed.  Results from an xpath query are returned
       as an XPath_Result object, which contains all the DOM functions from the main object.
       This class tries to hold as close as possible to the DOM Recommendation.
+
+      The XML_XPath class was inpired by a class maintained by Nigel Swinson called phpxpath.
+      The phpxpath class does not rely on PHP xmldom functions and is therefore a sibling to
+      this class: http://sourceforge.net/projects/phpxpath
     </description>
     <maintainers>
       <maintainer>
