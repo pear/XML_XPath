@@ -884,7 +884,6 @@ class XML_XPath_common {
      *
      * @access public
      * @return object pointer to old node {or XML_XPath_Error exception} 
-     * [!] I should make it so an xml_xpath_result is returned or something [!]
      */
     function replaceChild($in_xmlData, $in_xpathQuery = null, $in_movePointer = false)
     {
@@ -920,7 +919,7 @@ class XML_XPath_common {
             $this->_restore_bookmark();
         }
 
-        return $oldNode; 
+        return new XML_XPath_result(array($oldNode), XPATH_NODESET, null, $this->ctx, $this->xml);
     }
 
     // }}}
@@ -959,6 +958,7 @@ class XML_XPath_common {
         if (XML_XPath::isError($importedNodes = $this->_build_fragment($in_xmlData))) {
             return $importedNodes;
         }
+
         foreach($importedNodes as $index => $importedNode) {
             $node = $this->pointer->append_child($importedNode);
             if ($index == 0) {
@@ -1053,9 +1053,40 @@ class XML_XPath_common {
             $this->_restore_bookmark();
         }
        
-        return $removedNode;
+        return new XML_XPath_result(array($removedNode), XPATH_NODESET, null, $this->ctx, $this->xml);
     }
 
+    // }}}
+    // {{{ object  cloneNode()
+
+    /**
+     * Clones the node and return the node as a result object
+     *
+     * @param bool    $in_deep (optional) clone node children
+     * @param string  $in_xpathQuery (optional) quick xpath query
+     * @param boolean $in_movePointer (optional) move internal pointer
+     *
+     * @access public
+     * @return object cloned node of the current node, ready to be put in another document
+     */
+    function cloneNode($in_deep = false, $in_xpathQuery = null, $in_movePointer = false)
+    {
+        if (!$this->pointer) {
+            return PEAR::raiseError(null, XML_XPATH_NULL_POINTER, null, E_USER_WARNING, '', 'XML_XPath_Error', true);  
+        }
+
+        if (XML_XPath::isError($result = $this->_quick_evaluate_init($in_xpathQuery, $in_movePointer))) {
+            return $result;
+        }
+        
+        $clonedNode = $this->pointer->clone_node($in_deep);
+
+        if (!is_null($in_xpathQuery) && !$in_movePointer) {
+            $this->_restore_bookmark();
+        }
+
+        return new XML_XPath_result(array($clonedNode), XPATH_NODESET, null, $this->ctx, $this->xml);
+    }
     // }}}
     // {{{ void    replaceChildren()
 
