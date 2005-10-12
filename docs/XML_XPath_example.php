@@ -1,7 +1,17 @@
 <?php
+// $Id$
 error_reporting(E_ALL);
-require_once '../XPath.php';
+function microtime_float()
+{
+   list($usec, $sec) = explode(" ", microtime());
+   return ((float)$usec + (float)$sec);
+}
+
+require_once 'XML/XPath.php';
 $xml = new XML_XPath();
+if (XML_XPath::isError($xml)) {
+    die(XML_XPath::errorMessage($xml));	
+}
 $string = '<?xml version="1.0"?>
 <doc foo="bar">
   <child1>foo</child1>
@@ -31,12 +41,12 @@ echo '----------' . "\n";
 $result = $xml->evaluate(array('.', 'i/dont/exist'));
 print_r($result);
 print_r($result->substringData());
-$now = systime();
+$now = microtime_float();
 foreach (range(0, 50) as $i) {
     $xml->nodeName();
 }
 echo 'Timing:' . "\n";
-echo systime() - $now;
+echo microtime_float() - $now;
 echo "\n";
 if ($reports->evaluate(array('.', '..'), true)) {
     echo $reports->nodeName();

@@ -505,7 +505,9 @@ class XML_XPath_result extends XML_XPath_common {
      */
     function free()
     {
-        $this = null; 
+        $this->data = null; 
+        $this->ctx = null; 
+        $this->xml = null; 
     }
 
     // }}}

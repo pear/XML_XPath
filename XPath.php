@@ -89,6 +89,9 @@ class XML_XPath extends XML_XPath_common {
     /** @var boolean determines if we have loaded a document or not */
     var $loaded = false;
 
+    /** @var boolean error indicator */
+    var $error = false;
+
     // }}}
     // {{{ constructor
 
@@ -98,7 +101,7 @@ class XML_XPath extends XML_XPath_common {
         // if not defined, require load() to be called
         if (!is_null($in_xml)) {
             if (XML_XPath::isError($result = $this->load($in_xml, $in_type))) {
-                $this = $result;
+                $this->error = $result;
             }
         }
     }
@@ -194,7 +197,13 @@ class XML_XPath extends XML_XPath_common {
      */
     function isError($in_value)
     {
-        return is_a($in_value, 'xml_xpath_error');
+        if (is_a($in_value, 'xml_xpath_error')) {
+	        return true;
+        }
+        if (is_a($in_value, 'xml_xpath')) {
+	        return (bool) $in_value->error;
+        }
+        return false;
     }
 
     // }}}
@@ -237,7 +246,11 @@ class XML_XPath extends XML_XPath_common {
 
         // If this is an error object, then grab the corresponding error code
         if (XML_XPath::isError($in_value)) {
-            $in_value = $in_value->getCode();
+            if (is_a($in_value, 'xml_xpath_error')) {
+                $in_value = $in_value->getCode();
+            } else {
+                $in_value = $in_value->error->getCode();
+            }
         }
         
         // return the textual error message corresponding to the code
@@ -273,7 +286,7 @@ class XML_XPath extends XML_XPath_common {
      */
     function free()
     {
-        $this = null;
+        $this->reset();
     }
 
     // }}}

@@ -28,16 +28,17 @@
   </maintainers>
   <release>
     <license>PHP License</license>
-    <date>2004-01-29</date>
-    <state>devel</state>
-    <version>1.2.1</version>
+    <date>2005-10-12</date>
+    <state>stable</state>
+    <version>1.2.2</version>
     <deps>
       <dep type="php" rel="ge" version="4.2.1" />
       <dep type="ext" rel="has">domxml</dep>
     </deps>
     <notes>
-    * fixed a long standing bug where the get_class() failed due to a case problem, causing all load() operations to fail in newer releases of PHP
-    * changed state to devel
+    * fixed the $this assignments (toggg)
+    * adapted the error handling (toggg)
+    * refactored example, added function microtime_float to replace inexistant systime() (toggg)
     </notes>
     <filelist>
       <dir name="/" baseinstalldir="XML">
@@ -54,6 +55,15 @@
     </filelist>
   </release>
   <changelog>
+    <release>
+    <date>2005-10-12</date>
+    <state>devel</state>
+    <version>1.2.1</version>
+    <notes>
+    * fixed a long standing bug where the get_class() failed due to a case problem, causing all load() operations to fail in newer releases of PHP
+    * changed state to devel
+    </notes>
+    </release>
     <release>
 	<version>1.2</version>
     	<date>2002-06-07</date>
