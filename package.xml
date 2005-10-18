@@ -28,17 +28,16 @@
   </maintainers>
   <release>
     <license>PHP License</license>
-    <date>2005-10-12</date>
+    <date>2005-10-18</date>
     <state>stable</state>
-    <version>1.2.2</version>
+    <version>1.2.3</version>
     <deps>
       <dep type="php" rel="ge" version="4.2.1" />
+      <dep type="php" rel="lt" version="5.0.0" />
       <dep type="ext" rel="has">domxml</dep>
     </deps>
     <notes>
-    * fixed the $this assignments (toggg)
-    * adapted the error handling (toggg)
-    * refactored example, added function microtime_float to replace inexistant systime() (toggg)
+    There is now a dependency on PHP4 since PHP5 has out-of-the-box for XPath in both DOM and SimpleXML.
     </notes>
     <filelist>
       <dir name="/" baseinstalldir="XML">
