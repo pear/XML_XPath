@@ -1,5 +1,0 @@
-TODO:
-----
-[+] update to use all the new functionality of xml dom
-[+] add the create function wrappers
-[+] instead of the removeChildren, think about using a range object like mozilla
